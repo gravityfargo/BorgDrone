@@ -16,7 +16,7 @@ clean:
 	rm -rf .venv
 
 run:
-	flask --app borgdrone run
+	poetry run flask --app borgdrone run
 
 cleanrun:
 	make clean
