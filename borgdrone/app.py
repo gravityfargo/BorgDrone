@@ -26,8 +26,11 @@ def create_app(enable_logging: bool = True) -> Flask:
     config = get_secret_config()
     app = Flask(__name__)
     app.config.from_mapping(config)
-    app.config["SESSION_COOKIE_SAMESITE"] = None
-
+    app.config.update(
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+    )
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
