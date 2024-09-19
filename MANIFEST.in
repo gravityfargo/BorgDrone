@@ -1,0 +1,2 @@
+exclude .gitattributes .gitignore
+prune .github

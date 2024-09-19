@@ -1,0 +1,23 @@
+{% from 'macros.html' import text_input %}
+
+<div class="p-2 vstack gap-2">
+    {{ text_input("ID", "repo_id", value=repository.id, read_only=true) }}
+    {{ text_input("Cache Path", "cache_path", value=repository.cache_path, read_only=true) }}
+    <div class="hstack gap-2">
+        {{ text_input("Total Chunks", "total_chunks", value=repository.total_chunks, read_only=true) }}
+        {{ text_input("Compressed Size", "total_csize", value=convert_bytes(repository.total_csize), read_only=true) }}
+        {{ text_input("Original Size", "total_size", value=convert_bytes(repository.total_size), read_only=true) }}
+    </div>
+    <div class="hstack gap-2">
+        {{ text_input("Unique Chunks", "total_unique_chunks", value=repository.total_unique_chunks, read_only=true) }}
+        {{ text_input("Deduplicated Size", "unique_csize", value=convert_bytes(repository.unique_csize), read_only=true) }}
+        {{ text_input("Unique Size", "unique_size", value=convert_bytes(repository.unique_size), read_only=true) }}
+    </div>
+    {{ text_input("Encryption", "encryption", value=repository.encryption_mode, read_only=true) }}
+    {{ text_input("Last Modified", "last_modified", value=repository.last_modified, read_only=true) }}
+    {{ text_input("Security Dir", "security_dir", value=repository.security_dir, read_only=true) }}
+</div>
+<div class="p-2 text-end">
+    <input type="text" name="repo_path" value="{{ repository.path }}" hidden>
+    <button type="submit" class="btn btn-primary">Import</button>
+</div>

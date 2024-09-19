@@ -1,0 +1,24 @@
+# Dependency directories
+node_modules/
+
+# python
+.venv/
+__pycache__/
+
+# IDE directories
+.vscode/
+
+# Flask
+instance/
+dist/
+*.egg-info/
+migrations/
+
+# build
+_version.py
+build/
+
+# testing
+.pytest_cache/
+coverage.xml
+.coverage

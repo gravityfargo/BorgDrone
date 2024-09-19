@@ -1,0 +1,19 @@
+{% for archive in archives %}
+<div class="card w-50">
+    <div class="card-body">
+        <h5 class="card-title">
+            {{ archive.name }}
+        </h5>
+        <hr>
+        <div class="text-start"><b>Info:</b></div>
+        <div class="d-flex">
+            <div class="flex-grow-1 p-1 text-start">id</div>
+            <div class="p-1 text-break">{{archive.id}}</div>
+        </div>
+        <div class="d-flex">
+            <div class="flex-grow-1 p-1 text-start">hostname</div>
+            <div class="p-1">{{archive.hostname}}</div>
+        </div>
+    </div>
+</div>
+{% endfor %}

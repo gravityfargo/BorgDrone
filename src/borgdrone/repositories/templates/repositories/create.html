@@ -1,0 +1,24 @@
+{% from 'macros.html' import text_input %}
+<div class="p-2 border-bottom bg-body-tertiary mb-2">
+    <div class="hstack gap-3">
+        <div class="vstack">
+            <h5>Repositories</h5>
+            <h6>Create a Repository</h6>
+        </div>
+    </div>
+</div>
+<form hx-target="#content" hx-post="{{ url_for('repositories.create_repo') }}">
+    <div class="p-2 border rounded bg-body-tertiary">
+        {{ text_input("Path", "path", value="/tmp/borgdrone") }}
+    </div>
+
+    <div class="p-2 border rounded bg-body-tertiary">
+        <label for="encryption">Encryption</label>
+        <select id="encryption" class="form-select" name="encryption">
+            <option selected>none</option>
+        </select>
+    </div>
+    <div class="p-2 border rounded bg-body-tertiary">
+        <button type="submit" class="btn btn-primary">Create</button>
+    </div>
+</form>

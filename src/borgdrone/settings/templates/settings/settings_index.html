@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<script>
+    set_active_tab('settings_item');
+</script>
+<div class="p-2">
+    <form>
+        <div class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label for="archive_name" class="col-form-label">Archive Name</label>
+            </div>
+            <div class="col-auto">
+                <input type="password" id="inputPassword6" class="form-control" aria-describedby="passwordHelpInline">
+            </div>
+        </div>
+    </form>
+</div>
+
+{% endblock content %}

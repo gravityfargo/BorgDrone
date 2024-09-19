@@ -1,0 +1,25 @@
+<script>
+    select_tab("{{ selected_tab }}");
+</script>
+<div class="p-2 border-bottom bg-body-tertiary mb-2 shadow">
+    <div class="hstack gap-3">
+        <div class="vstack">
+            <h5>Repositories</h5>
+            <span>
+                "A repository is a filesystem directory containing the deduplicated data from zero or more
+                archives."
+            </span>
+        </div>
+        <div class="btn-group" role="group" aria-label="Basic example">
+            <button type="button" class="btn btn-primary" hx-target="#content"
+                hx-get="{{ url_for('repositories.create_repo') }}">Create
+            </button>
+
+            <button type="button" class="btn btn-primary" hx-target="#content"
+                hx-get="{{ url_for('repositories.import_repo') }}">Import
+            </button>
+        </div>
+    </div>
+</div>
+
+{% include 'repositories/repos.html' %}

@@ -1,0 +1,74 @@
+<div id="sidebar" class="d-flex flex-column min-vh-100 border-end border-black text-nowrap">
+    <div class="d-flex flex-column px-3 py-1">
+        <div id="logo" class="m-0">borgdrone</div>
+        <p class="text-white">Web UI for BorgBackup </p>
+    </div>
+    <hr class="mt-1">
+    <ul id="sidebar_links" class="list-group list-group-flush" hx-target="#content">
+
+        <div id="dashboard_tab"
+            class="list-group-item"
+            hx-get="{{ url_for('dashboard.index') }}"
+            hx-push-url="true"
+            hx-swap="innerHTML swap:0.1s">
+            <i class="bi bi-house-door-fill"></i> Dashboard
+        </div>
+
+        {% if current_user.is_authenticated %}
+
+        <div id="repositories_tab"
+            class="list-group-item"
+            hx-get="{{ url_for('repositories.index') }}"
+            hx-push-url="true"
+            hx-swap="innerHTML swap:0.1s">
+            <span><i class="bi bi-house-door-fill"></i> Repositories</span>
+        </div>
+
+        <div id="bundles_tab"
+            class="list-group-item"
+            hx-get="{{ url_for('bundles.index') }}"
+            hx-push-url="true"
+            hx-swap="innerHTML swap:0.1s">
+            <i class="bi bi-collection-fill"></i> Bundles
+        </div>
+
+        <div id="archives_tab"
+            class="list-group-item"
+            hx-get="{{ url_for('archives.index') }}"
+            hx-push-url="true"
+            hx-swap="innerHTML swap:0.1s">
+            <span><i class="bi bi-archive-fill"></i> Archives</span>
+        </div>
+
+        <div id="logs_tab"
+            class="list-group-item"
+            hx-get=""
+            hx-push-url="true"
+            hx-swap="innerHTML swap:0.1s">
+            <i class="bi bi-house-door-fill"></i> Logs
+        </div>
+
+        <div id="settings_tab"
+            class="list-group-item"
+            hx-get="{{ url_for('settings.index') }}"
+            hx-push-url="true"
+            hx-swap="innerHTML swap:0.1s">
+            <i class="bi bi-gear-fill"></i> Settings
+        </div>
+
+        {% endif %}
+    </ul>
+    <ul class="list-group list-group-flush mt-auto">
+        {% if current_user.is_authenticated %}
+        <li class="list-group-item">
+            <a class="nav-link stretched-link" href="{{ url_for('auth.logout') }}">
+                Sign out
+            </a>
+        </li>
+        {% else %}
+        <li class="list-group-item">
+            <a class="nav-link stretched-link" href="{{ url_for('auth.login') }}">Log In</a>
+        </li>
+        {% endif %}
+    </ul>
+</div>

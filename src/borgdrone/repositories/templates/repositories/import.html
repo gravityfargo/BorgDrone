@@ -1,0 +1,22 @@
+{% from 'macros.html' import text_input %}
+<div class="p-2 border-bottom bg-body-tertiary mb-2">
+    <div class="hstack gap-3">
+        <div class="vstack">
+            <h5>Repositories</h5>
+            <h6>Import a Repository</h6>
+        </div>
+    </div>
+</div>
+<div class="p-2 border rounded bg-body-tertiary">
+    <form hx-target="#content" hx-post="{{ url_for('repositories.import_repo') }}">
+        <div class="p-2 vstack gap-2">
+            {{ text_input("Path", "path", value="/tmp/borgdrone") }}
+            <button class="btn btn-primary" hx-target="#stats" hx-swap="innerHTML" hx-include="[name='path']"
+                hx-post="{{ url_for('repositories.get_repository_info') }}">
+                Check Path
+            </button>
+        </div>
+        <div id="stats">
+        </div>
+    </form>
+</div>

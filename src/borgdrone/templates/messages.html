@@ -1,0 +1,29 @@
+{% set icon_map = {
+    "ERROR": "bi-exclamation-octagon",
+    "INFO": "bi-info-circle-fill",
+    "SUCCESS": "bi-check-circle-fill",
+    "WARNING": "bi-exclamation-triangle-fill"
+} %}
+
+{% set color_map = {
+    "ERROR": "bg-danger",
+    "INFO": "bg-primary",
+    "SUCCESS": "bg-success",
+    "WARNING": "bg-warning"
+} %}
+
+<div id="toasts" class="toast-container position-fixed" hx-swap-oob="afterbegin">
+    {% with messages = get_flashed_messages(with_categories=True) %}
+    {% for category, message in messages %}
+    <div id="toast" class="toast {{ color_map[category] }}" role="alert" aria-live="assertive" aria-atomic="true">
+
+        <div class="d-flex fs-6">
+            <span class="align-self-center p-2"><i class="bi {{ icon_map[category] }}"></i></span>
+            <span class="p-2"><span>{{ message }}</span></span>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                aria-label="Close"></button>
+        </div>
+    </div>
+    {% endfor %}
+    {% endwith %}
+</div>
