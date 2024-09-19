@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "borgdrone"
-version = "0.1.0"
+version = "0.0.1"
 description = "Advanced web interface for BorgBackup"
 authors = ["Nathan Price <gravityfargo@gmail.com>"]
 license = "BSD-4-Clause"
@@ -43,10 +43,22 @@ build-backend = "poetry_dynamic_versioning.backend"
 [tool.poetry-dynamic-versioning]
 enable = true
 vcs = "git"
+style = "semver"
 
 [tool.poetry-dynamic-versioning.substitution]
-files = ["*/_version.py"]
-style = "semver"
+files = ["borgdrone/_version.py"]
+patterns = [
+    '''(^__version__\s*(?::.*?)?=\s*['"])[^'"]*(['"])''',
+    { value = '''(^__version_tuple__\s*(?::.*?)?=\s*\()[^)]*(\))''', mode = "tuple" },
+]
+
+[tool.poetry-dynamic-versioning.files."borgdrone/_version.py"]
+persistent-substitution = true
+initial-content = """
+# These version placeholders will be replaced later during substitution.
+__version__ = "0.0.0"
+__version_tuple__ = (0, 0, 0)
+"""
 
 [tool.pylint.main]
 output-format = "colorized"
