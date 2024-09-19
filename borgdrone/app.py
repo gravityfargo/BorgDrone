@@ -6,7 +6,7 @@ from typing import Any
 from dotenv import dotenv_values
 from flask import Flask, Response, render_template, request
 
-from ._version import version
+from ._version import __version__
 from .archives import archives_blueprint
 from .auth import UserManager, Users, auth_blueprint
 from .bundles import bundles_blueprint
@@ -37,7 +37,7 @@ def create_app(enable_logging: bool = True) -> Flask:
     @app.context_processor
     def utility_processor():
         return {
-            "version": version,
+            "version": __version__,
         }
 
     @app.before_request

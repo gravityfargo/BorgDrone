@@ -15,7 +15,7 @@ dist/
 migrations/
 
 # build
-_version.py
+
 build/
 
 # testing
