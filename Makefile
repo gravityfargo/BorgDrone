@@ -4,8 +4,8 @@ install:
 	poetry run flask --app borgdrone db init
 
 migrate:
-	flask --app borgdrone db migrate -m "Upgrade database."
-	flask --app borgdrone db upgrade
+	poetry run flask --app borgdrone db migrate -m "Upgrade database."
+	poetry run flask --app borgdrone db upgrade
 
 clean:
 	find . -name '__pycache__' -exec rm -rf {} +
@@ -20,16 +20,17 @@ run:
 
 cleanrun:
 	make clean
+	make install
 	make run
 
 test-all:
 	clear
-	pytest
+	poetry run pytest
 
 test-repos:
 	clear
-	pytest tests/requests/test_repositories.py
+	poetry run pytest tests/requests/test_repositories.py
 
 test-bundles:
 	clear
-	pytest tests/requests/test_bundles.py
+	poetry run pytest tests/requests/test_bundles.py
