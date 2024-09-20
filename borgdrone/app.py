@@ -80,9 +80,10 @@ def create_app(enable_logging: bool = True) -> Flask:
 
 
 def init_db_data(app: Flask):
-    user = UserManager().get_by_id(1)
-    if not user:
-        user = UserManager().create(app.config["DEFAULT_USER"], app.config["DEFAULT_PASSWORD"])
+    um = UserManager()
+    result_log = um.get(user_id=1)
+    if not result_log.get_data():
+        um.create(app.config["DEFAULT_USER"], app.config["DEFAULT_PASSWORD"])
         # SettingsManager().create(user_id=user.id)
 
 

@@ -2,13 +2,11 @@ import random
 from typing import Any
 
 from flask import Blueprint, request
-from flask_login import current_user, login_required
+from flask_login import login_required
 from flask_socketio import emit
 
 from borgdrone.extensions import socketio
-from borgdrone.helpers import ResponseHelper, bash, datahelpers
-
-# from borgdrone.logging import logger as log
+from borgdrone.helpers import ResponseHelper
 from borgdrone.repositories import RepositoryManager
 
 from .managers import BundleManager
@@ -37,11 +35,8 @@ def check_dir(path_type):
     input_path = ""
     if path_type == "include":
         input_path = request.form.get("include_path")
-    elif path_type == "exclude":
-        input_path = request.form.get("exclude_path")
     else:
-        rh.toast_error = "Invalid path type."
-        return rh.respond(empty=True)
+        input_path = request.form.get("exclude_path")
 
     if not input_path:
         rh.toast_error = "No path provided."
@@ -52,8 +47,7 @@ def check_dir(path_type):
     if result_log.status == "FAILURE":
         return rh.respond(empty=True)
 
-    data = result_log.get_data()
-    if not data:
+    if not (data := result_log.get_data()):
         return rh.respond(empty=True)
 
     html = f"""
@@ -94,6 +88,7 @@ def check_dir(path_type):
 @bundles_blueprint.route("/form/<purpose>/<bundle_id>", methods=["GET", "POST"])
 @login_required
 def bundle_form(purpose, bundle_id) -> Any:
+    # form inputs must be named the same as the BackupBundle model
     rh = ResponseHelper(
         get_template="bundles/bundle_form.html",
         post_success_template="bundles/index.html",
@@ -101,8 +96,25 @@ def bundle_form(purpose, bundle_id) -> Any:
     )
 
     result_log = RepositoryManager().get_all()
-    repos = result_log.get_data()
+    rh.context_data = {"repos": result_log.get_data(), "form_purpose": purpose}
 
+    if request.method == "POST":
+        data = request.form
+
+        if purpose == "create":
+            result_log = bundle_manager.create_bundle(**data)
+            rh.borgdrone_return = result_log.borgdrone_return()
+
+            if result_log.status == "FAILURE":
+                rh.toast_error = result_log.error_message
+                rh.context_data["bundle"] = result_log.data
+
+                return rh.respond(error=True)
+
+            rh.toast_success = result_log.message
+            return rh.respond(redirect_url="bundles.index")
+
+    # GET
     if purpose == "create":
         # Non-commited instance
         bundle = BackupBundle()
@@ -111,7 +123,8 @@ def bundle_form(purpose, bundle_id) -> Any:
         bundle.cron_minute = "*"
         bundle.cron_month = "*"
         bundle.cron_weekday = "*"
-        rh.context_data = {"repos": repos, "bundle": bundle, "form_purpose": purpose}
+
+        rh.context_data["bundle"] = bundle
 
     elif purpose == "update":  # TODO
         result_log = bundle_manager.get_one(bundle_id=bundle_id)
@@ -123,20 +136,7 @@ def bundle_form(purpose, bundle_id) -> Any:
             rh.toast_error = "Bundle not found."
             return rh.respond()
 
-        rh.context_data = {"repos": repos, "bundle": result_log.data, "form_purpose": purpose}
-
-    if request.method == "POST":
-        data = request.form
-        # form inputs must be named the same as the BackupBundle model
-        result_log = bundle_manager.create_bundle(**data)
-        rh.borgdrone_return = result_log.borgdrone_return()
-
-        if result_log.status == "FAILURE":
-            rh.toast_error = result_log.error_message
-            return rh.respond(error=True)
-
-        rh.toast_success = result_log.message
-        return rh.respond(redirect_url="bundles.index")
+        rh.context_data["bundle"] = result_log.get_data()
 
     return rh.respond()
 
@@ -163,43 +163,22 @@ def run_backup(bundle_id: int):
     rh = ResponseHelper(
         get_template="bundles/runner.html",
     )
-    bundle = BundleManager().get_one(bundle_id=bundle_id)
+    result_log = bundle_manager.get_one(bundle_id=bundle_id)
+    if not (bundle := result_log.get_data()):
+        return rh.respond(empty=True)
+
     rh.context_data = {"bundle": bundle}
     return rh.respond()
 
 
 @socketio.on("backup_start")
 def handle_message(msg):
-    repo_manager = RepositoryManager()
-    bundle = BundleManager().get_one(bundle_id=msg["bundle_id"])
-    if not bundle:
-        print("no bundle")
-        return
-    repo = repo_manager.get_one(repo_id=bundle.repo_id)
-    # bash.popen(["ping", "-c", "5", "8.8.8.8"])
 
-    if not repo:
-        emit("line", {"text": "Error: Repository not found in database.\n"})
-        print("no repo")
+    bundle_id = msg["bundle_id"]
+    result_log = bundle_manager.create_backup(bundle_id)
+
+    if result_log.status == "FAILURE":
+        emit("send_line", {"text": result_log.error_message})
         return
 
-    cmd = [
-        "borg",
-        "create",
-        "--list",
-        "--stats",
-        repo.path + "::{hostname}-{user}-{now}",
-    ]
-
-    excluded = []
-    for directory in bundle.backupdirectories:
-        if directory.exclude:
-            excluded.append("--exclude")
-            excluded.append(directory.path)
-        else:
-            cmd.append(directory.path)
-
-    # print(cmd)
-    cmd.extend(excluded)
-
-    send_back = bash.popen(cmd, "borg_create_log")
+    emit("send_line", {"text": result_log.message})

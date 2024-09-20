@@ -8,32 +8,20 @@ from borgdrone.extensions import socketio
 from borgdrone.logging import logger as log
 
 
-def popen(command: List[str], logger: str = "") -> str:
-    send_back = ""
-
+def popen(command: List[str]):
     @copy_current_request_context  # Ensures Flask context is copied to the new thread
     def run_command():
 
         with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as process:
-
-            def log_output(line: str):
-                nonlocal send_back
-                if logger == "borg_create_log":
-                    log.borg_create_log(line)
-                    if "Archive name: " in line:
-                        send_back = line
-                        print(send_back)
-                log.debug(line)
-
             while True:
                 if not process.stdout:
                     continue
 
                 output = process.stdout.readline()
                 if output:
-                    line = output.strip()
-                    log_output(line)
-                    emit("send_line", {"line": line}, broadcast=True)
+                    line = output.strip("\n")
+                    emit("send_line", {"text": line}, broadcast=True)
+                    log.borg_temp_log(line)
                     continue
 
                 if not process.stderr:
@@ -41,18 +29,18 @@ def popen(command: List[str], logger: str = "") -> str:
 
                 error = process.stderr.readline()
                 if error:
-                    line = error.strip()
-                    log_output(line)
-                    emit("send_line", {"line": f"{line}\n"}, broadcast=True)
+                    line = error.strip("\n")
+                    emit("send_line", {"text": f"{line}\n"}, broadcast=True)
+                    log.borg_temp_log(line)
                     continue
 
                 if output == "" and process.poll() is not None:
-                    log_output("Command finished")
+                    # log_output("Command finished")
                     break
 
     # Running the command in a new thread to allow Flask to continue processing other events
     socketio.start_background_task(run_command)
-    return send_back
+    # return send_back
 
 
 def run(command: str | list, capture_output=True, text_mode=True):

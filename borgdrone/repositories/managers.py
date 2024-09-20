@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 
 from flask_login import current_user
 
@@ -31,64 +31,82 @@ class RepositoryManager:
 
         return _log.return_success("Repository retrieved.")
 
-    def get_all(self) -> BorgdroneEvent[list[Repository]]:
-        _log = BorgdroneEvent()
+    def get_all(self) -> BorgdroneEvent[List[Repository]]:
+        _log = BorgdroneEvent[List[Repository]]()
         _log.event = "RepositoryManager.get_all"
 
         instances = db.session.query(Repository).filter(Repository.user_id == current_user.id).all()
-        _log.data = instances
+        _log.set_data(instances)
 
-        return _log.return_success("Repositories retrieved.")
+        return _log.return_success(f"All of {current_user.username}'s repositories retrieved.")
 
-    def get_last(self, user_id: int) -> Optional[Repository]:
-        instance = Repository.query.filter_by(user_id=user_id).order_by(Repository.id.desc()).first()
-        log.debug("RETRIEVED_LAST_REPOSITORY")
-        return instance
+    def get_last(self) -> BorgdroneEvent[Repository]:
+        _log = BorgdroneEvent[Repository]()
+        _log.event = "RepositoryManager.get_last"
 
-    def create_repo(self, path: str, encryption: str) -> BorgdroneEvent:
-        _log = BorgdroneEvent()
+        instance = (
+            db.session.query(Repository)
+            .filter(Repository.user_id == current_user.id)
+            .order_by(Repository.id.desc())
+            .first()
+        )
+        if not instance:
+            return _log.return_failure("No repositories found.")
+
+        _log.set_data(instance)
+
+        return _log.return_success("Last repository retrieved.")
+
+    def create_repo(self, path: str, encryption: str) -> BorgdroneEvent[Repository]:
+        _log = BorgdroneEvent[Repository]()
         _log.event = "RepositoryManager.create_repo"
 
-        run_result_log = borg_runner.run("create_repo", path=path, encryption=encryption)
-        if run_result_log.status == "FAILURE":
-            log.error(run_result_log.error_code)
-            return run_result_log
+        # borg init
+        init_result_log = borg_runner.create_repository(path, encryption)
+        if init_result_log.status == "FAILURE":
+            # we want to pass the error code and message
+            # to the user and for BORG_RETURN
+            _log.error_code = init_result_log.error_code
+            _log.error_message = init_result_log.error_message
+            return _log.return_failure(init_result_log.error_message)
 
         info_result_log = self.get_repository_info(path=path)
         if info_result_log.status == "FAILURE":
-            log.error(info_result_log.message)
-            return info_result_log
+            return _log.return_failure(info_result_log.error_message)
 
-        repo = info_result_log.get_data()
-        if not repo:
-            # this should not be possible
-            _log.status = "FAILURE"
-            _log.error_message = "Failed to get repository info. This should not be possible!"
-            log.error(_log.error_message)
-            return _log
+        if not (repo := info_result_log.get_data()):
+            message = "Failed to get repository info. This should not be possible here!"
+            return _log.return_failure(message)
 
         repo.user_id = current_user.id
         repo.commit()
 
-        # Success
-        _log.set_data(run_result_log.data)
-
-        success = "Repository created."
-        return _log.return_success(success)
+        _log.set_data(repo)
+        return _log.return_success("Repository created.")
 
     def get_repository_info(self, path: str) -> BorgdroneEvent[Repository]:
+        """Get information about a repository.
+
+        Arguments:
+            path -- Path to the repository.
+
+        Returns:
+            BorgdroneEvent[Repository] -- A BorgdroneEvent with an uncommited Repository instance as data.
+        """
         _log = BorgdroneEvent[Repository]()
         _log.event = "RepositoryManager.get_repository_info"
 
-        runner_result = borg_runner.run("get_repository_info", path=path)
-        if runner_result.status == "FAILURE":
-            log.error(runner_result.error_code)
-            return runner_result
+        info_result_log = borg_runner.repository_info(path)
+        if info_result_log.status == "FAILURE":
+            # we want to pass the error code and message
+            # to the user and for BORG_RETURN
+            _log.error_code = info_result_log.error_code
+            _log.error_message = info_result_log.error_message
+            return _log.return_failure(info_result_log.error_message)
 
-        stats = runner_result.get_data()
-        if not stats:
-            error_message = "Failed to get repository info. This should not be possible!"
-            return _log.return_failure(error_message)
+        if not (stats := info_result_log.get_data()):
+            message = "Failed to get repository info."
+            return _log.return_failure(message)
 
         instance = Repository()
         instance.id = stats["repository"]["id"]
@@ -108,31 +126,31 @@ class RepositoryManager:
         instance.security_dir = stats["security_dir"]
 
         _log.set_data(instance)
+        return _log.return_success("Repository info retrieved.")
 
-        success = "Repository info retrieved."
-        return _log.return_success(success)
-
-    def delete_repo(self, repo_id: int) -> BorgdroneEvent:
-        _log = BorgdroneEvent()
+    def delete_repo(self, repo_id: int) -> BorgdroneEvent[None]:
+        _log = BorgdroneEvent[None]()
         _log.event = "RepositoryManager.delete_repo"
 
+        # get the repository
         result_log = self.get_one(repo_id=repo_id)
-        if not result_log.data:
+        if not (instance := result_log.data):
             return _log.not_found_message("Repository")
 
-        instance = result_log.data
         instance.delete()
         log.success("Repository deleted from borgdrone database.")
 
-        result_log = borg_runner.run("delete_repo", path=instance.path)
-        if result_log.status == "ERROR":
+        # borg delete --force
+        result_log = borg_runner.delete_repository(instance.path)
+        if result_log.status == "FAILURE":
             return _log.return_failure(result_log.error_message)
 
-        success = "Repository deleted from filesystem."
-        return _log.return_success(success)
+        return _log.return_success("Repository deleted from filesystem.")
 
-    def update_repository_info(self, repo_id: Optional[int] = None, path: Optional[str] = None) -> BorgdroneEvent:
-        _log = BorgdroneEvent()
+    def update_repository_info(
+        self, repo_id: Optional[int] = None, path: Optional[str] = None
+    ) -> BorgdroneEvent[None]:
+        _log = BorgdroneEvent[None]()
         _log.event = "RepositoryManager.update_repository_info"
 
         result_log = self.get_one(repo_id=repo_id, path=path)
@@ -143,7 +161,7 @@ class RepositoryManager:
 
         result_log = self.get_repository_info(instance.path)
         if result_log.status == "FAILURE":
-            return result_log
+            return _log.return_failure(result_log.error_message)
 
         data = result_log.get_data()
         if not data:
@@ -165,11 +183,10 @@ class RepositoryManager:
 
         db.session.commit()
 
-        success = "Repository info updated."
-        return _log.return_success(success)
+        return _log.return_success("Repository info updated.")
 
-    def import_repo(self, path: str) -> BorgdroneEvent:
-        _log = BorgdroneEvent()
+    def import_repo(self, path: str) -> BorgdroneEvent[Repository]:
+        _log = BorgdroneEvent[Repository]()
         _log.event = "RepositoryManager.import_repo"
 
         instance = self.get_one(path=path)
@@ -178,15 +195,20 @@ class RepositoryManager:
             return _log.return_failure(error_message)
 
         result_log = self.get_repository_info(path=path)
-        if result_log.status == "ERROR":
-            return result_log
+        if result_log.status == "FAILURE":
+            # we want to pass the error code and message
+            # to the user and for BORG_RETURN
+            _log.error_code = result_log.error_code
+            _log.error_message = result_log.error_message
 
-        instance = result_log.get_data()
-        if not instance:
-            return result_log
+            return _log.return_failure(result_log.error_message)
+
+        if not (instance := result_log.get_data()):
+            message = "Failed to get repository info."
+            return _log.return_failure(message)
 
         instance.user_id = current_user.id
         instance.commit()
 
-        success_message = "Repository imported to borgdrone"
-        return _log.return_success(success_message)
+        _log.set_data(instance)
+        return _log.return_success("Repository imported to borgdrone")
