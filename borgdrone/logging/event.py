@@ -70,20 +70,20 @@ class BorgdroneEvent(Generic[T]):
         log.error(self.error_message)
         return self
 
-    def return_success(self, message: str) -> "BorgdroneEvent":
+    def return_success(self, success_message: str) -> "BorgdroneEvent":
         """Helper function
 
         Set the status to SUCCESS and the message to the given message
         logs the message and returns the instance
 
         Arguments:
-            message -- Success message
+            success_message -- Success message
 
         Returns:
             self
         """
         self.status = "SUCCESS"
-        self.message = message
+        self.message = success_message
 
         if not self.event:
             self.event = "BorgdroneEvent.success_message"
@@ -91,7 +91,7 @@ class BorgdroneEvent(Generic[T]):
         log.success_event(self.message)
         return self
 
-    def return_failure(self, message: str) -> "BorgdroneEvent":
+    def return_failure(self, error_message: str) -> "BorgdroneEvent":
         """Helper function
 
         Set the status to FAILURE and the message to the given message
@@ -100,13 +100,13 @@ class BorgdroneEvent(Generic[T]):
         Do not use for BorgRunner errors, those should be passed to the user directly.
 
         Arguments:
-            message -- Failure message
+            error_message -- Failure message
 
         Returns:
             self
         """
         self.status = "FAILURE"
-        self.error_message = message
+        self.error_message = error_message
 
         if not self.event:
             self.event = "BorgdroneEvent.failure_message"
