@@ -17,12 +17,10 @@ def test_repo(client):
     }
     # function: the fixture is destroyed at the end of the test.
     client.post("/repositories/create/", data=repo)
-    repo = RepositoryManager().get_last(user_id=current_user.id)
-    assert repo
+    result_log = RepositoryManager().get_last()
+    assert result_log.get_data()
 
-    yield repo
-
-    client.delete(f"/repositories/delete/{repo.id}")
+    yield result_log.get_data()
 
 
 def test_index(client):
@@ -57,7 +55,7 @@ def test_create_repo_post(client):
         "encryption": "notvalidtype",
     }
     response = client.post("/repositories/create/", data=repo2)
-    assert response.headers["BORGDRONE_RETURN"] == "BorgRunner._create_repository.FAILURE"
+    assert response.headers["BORGDRONE_RETURN"] == "RepositoryManager.create_repo.FAILURE"
 
     # bad path
     repo3 = {
@@ -103,7 +101,7 @@ def test_import_repo(client):
     response = client.get("/repositories/import")
     assert response.status_code == 200
 
-    result_log = borg_runner._create_repository(path=repo["path"], encryption=repo["encryption"])
+    result_log = borg_runner.create_repository(path=repo["path"], encryption=repo["encryption"])
     assert result_log.status == "SUCCESS"
 
     # OK POST
