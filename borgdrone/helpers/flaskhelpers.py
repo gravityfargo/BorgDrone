@@ -19,12 +19,6 @@ JINJA_TEMPLATE = """
 <script>
     select_tab("{{ selected_tab }}");
 </script>
-whast
-asd
-asd
-asd
-asd
-asd
 
 {% include 'TEMPLATE_FRAGMENT' %}
 
@@ -63,9 +57,6 @@ class ResponseHelper:
         self.context_data["selected_tab"] = f"{base_name}_tab"
 
         response = self._respond_empty()
-        log.debug(
-            f"ResponseHelper.respond() called with redirect_url: {redirect_url}, error: {error}, empty: {empty}, data: {data}"
-        )
 
         if redirect_url:
             response = self.respond_redirect(redirect_url)
