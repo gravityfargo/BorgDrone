@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -17,7 +17,9 @@ class BackupBundle(db.Model):
     repo = relationship("Repository", back_populates="backupbundles")
 
     ## parent
-    backupdirectories = relationship("BackupDirectory", back_populates="backupbundle", cascade="all, delete")
+    backupdirectories: Mapped[List["BackupDirectory"]] = relationship(
+        "BackupDirectory", back_populates="backupbundle", cascade="all, delete"
+    )
     archives = relationship("Archive", back_populates="backupbundle", cascade="all, delete")
 
     # Cron job settings
@@ -32,6 +34,7 @@ class BackupBundle(db.Model):
 
     # Archive options
     comment: Mapped[Optional[str]]
+    command_line: Mapped[Optional[str]]
 
     def commit(self):
         db.session.add(self)
