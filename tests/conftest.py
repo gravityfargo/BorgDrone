@@ -9,7 +9,7 @@ from flask_login import LoginManager, current_user
 from borgdrone import create_app
 from borgdrone.auth import Users
 
-INSTANCE_PATH = f"/tmp/borgdrone_pytest_-{randint(0, 1000)}"
+INSTANCE_PATH = f"/tmp/borgdrone_pytest_{randint(0, 1000)}"
 
 
 def new_instance_subdir() -> str:
@@ -64,5 +64,5 @@ def test_login(app, client):
     }
 
     result = client.post("/auth/login", data=form_data)
-    assert result.headers["BORGDRONE_RETURN"] == "Auth.LoginSuccess"
+    assert result.headers["BORGDRONE_RETURN"] == "UserManager.login.SUCCESS"
     assert current_user.id == 1
