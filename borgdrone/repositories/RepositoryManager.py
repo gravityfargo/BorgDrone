@@ -6,17 +6,21 @@ from borgdrone.extensions import db
 from borgdrone.helpers.datahelpers import ISO8601_to_human
 from borgdrone.logging import BorgdroneEvent
 from borgdrone.logging import logger as log
-from borgdrone.types import OptStr
+from borgdrone.types import OptInt, OptStr
 
 from .models import OptListRepository, OptRepository, Repository
 
 
-def get_one(repo_id: OptStr = None, path: OptStr = None) -> BorgdroneEvent[OptRepository]:
+def get_one(db_id: OptInt = None, repo_id: OptStr = None, path: OptStr = None) -> BorgdroneEvent[OptRepository]:
     _log = BorgdroneEvent[OptRepository]()
     _log.event = "RepositoryManager.get_one"
 
-    if repo_id is not None:
-        stmt = select(Repository).where(Repository.id == repo_id)
+    if db_id is not None:
+        stmt = select(Repository).where(Repository.id == db_id)
+        instance = db.session.scalars(stmt).first()
+
+    elif repo_id is not None:
+        stmt = select(Repository).where(Repository.repo_id == repo_id)
         instance = db.session.scalars(stmt).first()
 
     elif path is not None:
@@ -53,6 +57,24 @@ def get_all() -> BorgdroneEvent[OptListRepository]:
     else:
         _log.status = "SUCCESS"
         _log.message = f"All of {current_user.username}'s repositories retrieved."
+
+    return _log
+
+
+def get_latest() -> BorgdroneEvent[OptRepository]:
+    _log = BorgdroneEvent[OptRepository]()
+    _log.event = "RepositoryManager.get_latest"
+
+    stmt = select(Repository).order_by(Repository.id.desc())
+    instance = db.session.scalars(stmt).first()
+
+    _log.set_data(instance)
+    if not instance:
+        _log.status = "FAILURE"
+        _log.error_message = "No repositories found."
+    else:
+        _log.status = "SUCCESS"
+        _log.message = "Latest repository retrieved."
 
     return _log
 
@@ -110,7 +132,7 @@ def get_repository_info(path: str) -> BorgdroneEvent[Repository]:
         return _log.return_failure(message)
 
     instance = Repository()
-    instance.id = stats["repository"]["id"]
+    instance.repo_id = stats["repository"]["id"]
     instance.path = stats["repository"]["location"]
 
     date_str = stats["repository"]["last_modified"]

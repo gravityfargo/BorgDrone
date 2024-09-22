@@ -1,8 +1,7 @@
 import pytest
-from flask_login import current_user
 
 from borgdrone.borg import borg_runner
-from borgdrone.repositories import RepositoryManager
+from borgdrone.repositories import RepositoryManager as repository_manager
 
 from ..conftest import new_instance_subdir
 
@@ -17,7 +16,7 @@ def test_repo(client):
     }
     # function: the fixture is destroyed at the end of the test.
     client.post("/repositories/create/", data=repo)
-    result_log = RepositoryManager().get_last()
+    result_log = repository_manager.get_latest()
     assert result_log.get_data()
 
     yield result_log.get_data()
