@@ -1,7 +1,7 @@
 from typing import Any
 
 from flask import Blueprint, request
-from flask_login import current_user, login_required
+from flask_login import login_required
 
 from borgdrone.helpers import ResponseHelper, datahelpers
 
@@ -39,7 +39,7 @@ def create_repo() -> Any:
     if request.method == "POST":
         form_data = request.form
 
-        result_log = repo_manager.create_repo(path=form_data["path"], encryption=form_data["encryption"])
+        result_log = repo_manager.create_repo(form_data["path"], form_data["encryption"])
         rh.borgdrone_return = result_log.borgdrone_return()
 
         if result_log.status == "FAILURE":
@@ -57,7 +57,9 @@ def create_repo() -> Any:
 @repositories_blueprint.route("/info", methods=["POST"])
 @login_required
 def get_repository_info() -> Any:
-    rh = ResponseHelper(post_success_template="repositories/repo_stats.html")
+    rh = ResponseHelper(
+        post_success_template="repositories/repo_stats.html",
+    )
 
     result_log = repo_manager.get_repository_info(path=request.form["path"])
     rh.borgdrone_return = result_log.borgdrone_return()
