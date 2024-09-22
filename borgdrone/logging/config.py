@@ -119,7 +119,7 @@ def configure_logging() -> None:
         "version": 1,
         "disable_existing_loggers": False,
         "formatters": {
-            "info": {"format": f"{Green}[Success]{Color_Off} %(message)s"},
+            "info": {"format": f"{Green}[%(levelname)-s]{Color_Off} %(message)s"},
             "warning": {"format": f"{Yellow}[%(levelname)-s]{Color_Off} %(message)s"},
             "error": {"format": f"{Red}[%(levelname)-s]{Color_Off} %(message)s"},
             "debug": {"format": f"{Purple}[%(levelname)-s]{Color_Off} %(message)s"},
