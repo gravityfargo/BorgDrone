@@ -8,7 +8,8 @@ from flask import Flask, Response, render_template, request
 
 from ._version import __version__
 from .archives import archives_blueprint
-from .auth import UserManager, Users, auth_blueprint
+from .auth import UserManager as user_manager
+from .auth import Users, auth_blueprint
 from .bundles import bundles_blueprint
 from .dashboard import dashboard_blueprint
 from .extensions import db, login_manager, migrate, socketio
@@ -80,10 +81,10 @@ def create_app(enable_logging: bool = True) -> Flask:
 
 
 def init_db_data(app: Flask):
-    um = UserManager()
-    result_log = um.get(user_id=1)
+    result_log = user_manager.get_one(user_id=1)
+
     if not result_log.get_data():
-        um.create(app.config["DEFAULT_USER"], app.config["DEFAULT_PASSWORD"])
+        user_manager.create(app.config["DEFAULT_USER"], app.config["DEFAULT_PASSWORD"])
         # SettingsManager().create(user_id=user.id)
 
 
