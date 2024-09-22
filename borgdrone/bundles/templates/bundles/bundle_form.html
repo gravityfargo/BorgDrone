@@ -15,22 +15,25 @@
     <div class="p-2 border rounded bg-body-tertiary">
         <label for="repo" class="form-label">Choose a Repository</label>
         <select name="repo_id" class="form-select" id="repo">
-            {% for repo in repos %}
-            <option value="{{ repo.id }}" selected>{{ repo.path }}</option>
-            {% endfor %}
+            {% for repo in repos %}<option value="{{ repo.id }}" selected>{{ repo.path }}</option>{% endfor %}
         </select>
     </div>
     <div class="p-2 border rounded bg-body-tertiary">
         <div class="d-flex gap-2 p-2">
             <div class="flex-grow-1">
                 <label for="include_path" class="form-label">Include Directories</label>
-                <input id="include_path" name="include_path" type="text" class="form-control"
+                <input id="include_path"
+                    name="include_path"
+                    type="text"
+                    class="form-control"
                     placeholder="/home/username">
             </div>
-            <button class="btn btn-primary btn-sm" hx-post="{{ url_for('bundles.check_dir', path_type='include') }}"
-                hx-on::after-request="clearPath()" hx-target="#include_paths" hx-swap="beforeend"
-                hx-include="[name='include_path']">Add
-            </button>
+            <button class="btn btn-primary btn-sm"
+                hx-post="{{ url_for('bundles.check_dir', path_type='include') }}"
+                hx-on::after-request="clearPath()"
+                hx-target="#include_paths"
+                hx-swap="beforeend"
+                hx-include="[name='include_path']">Add</button>
         </div>
         <table class="table" style="--bs-table-bg: transparent">
             <thead>
@@ -45,29 +48,21 @@
             <tbody id="include_paths">
                 {% for bundle in bundle.backupdirectories %}
                 {% if bundle.exclude == False %}
-                <tr id="{{bundle.path}}">
+                <tr id="{{ bundle.path }}">
                     <textarea name="{{bundle.path}}{{bundle.id}}" hidden>
-                        path: {{bundle.path}}
-                        permissions: {{bundle.path}}
-                        owner: {{bundle.path}}
-                        group: {{bundle.path}}
+                        path: {{ bundle.path }}
+                        permissions: {{ bundle.path }}
+                        owner: {{ bundle.path }}
+                        group: {{ bundle.path }}
                     </textarea>
-                    <td>
-                        {{bundle.path}}
-                    </td>
-                    <td>
-                        {{bundle.permissions}}
-                    </td>
-                    <td>
-                        {{bundle.owner}}
-                    </td>
-                    <td>
-                        {{bundle.group}}
-                    </td>
+                    <td>{{ bundle.path }}</td>
+                    <td>{{ bundle.permissions }}</td>
+                    <td>{{ bundle.owner }}</td>
+                    <td>{{ bundle.group }}</td>
                     <td>
                         <i class="text-danger bi bi-trash3-fill"
                             onclick="removePath(event)"
-                            id="{{bundle.path}}">
+                            id="{{ bundle.path }}">
                         </i>
                     </td>
                 </tr>
@@ -81,13 +76,18 @@
         <div class="d-flex gap-2 p-2">
             <div class="flex-grow-1">
                 <label for="exclude_path" class="form-label">Exclude Directories</label>
-                <input id="exclude_path" name="exclude_path" type="text" class="form-control"
+                <input id="exclude_path"
+                    name="exclude_path"
+                    type="text"
+                    class="form-control"
                     placeholder="/home/username/Downloads">
             </div>
-            <button class="btn btn-primary btn-sm" hx-post="{{ url_for('bundles.check_dir', path_type='exclude') }}"
-                hx-on::after-request="clearPath()" hx-target="#exclude_paths" hx-swap="beforeend"
-                hx-include="[name='exclude_path']">Add
-            </button>
+            <button class="btn btn-primary btn-sm"
+                hx-post="{{ url_for('bundles.check_dir', path_type='exclude') }}"
+                hx-on::after-request="clearPath()"
+                hx-target="#exclude_paths"
+                hx-swap="beforeend"
+                hx-include="[name='exclude_path']">Add</button>
         </div>
         <table class="table" style="--bs-table-bg: transparent">
             <thead>
@@ -102,29 +102,21 @@
             <tbody id="exclude_paths">
                 {% for bundle in bundle.backupdirectories %}
                 {% if bundle.exclude == True %}
-                <tr id="{{bundle.path}}">
+                <tr id="{{ bundle.path }}">
                     <textarea name="{{bundle.path}}{{bundle.id}}" hidden>
-                        path: {{bundle.path}}
-                        permissions: {{bundle.path}}
-                        owner: {{bundle.path}}
-                        group: {{bundle.path}}
+                        path: {{ bundle.path }}
+                        permissions: {{ bundle.path }}
+                        owner: {{ bundle.path }}
+                        group: {{ bundle.path }}
                     </textarea>
-                    <td>
-                        {{bundle.path}}
-                    </td>
-                    <td>
-                        {{bundle.permissions}}
-                    </td>
-                    <td>
-                        {{bundle.owner}}
-                    </td>
-                    <td>
-                        {{bundle.group}}
-                    </td>
+                    <td>{{ bundle.path }}</td>
+                    <td>{{ bundle.permissions }}</td>
+                    <td>{{ bundle.owner }}</td>
+                    <td>{{ bundle.group }}</td>
                     <td>
                         <i class="text-danger bi bi-trash3-fill"
                             onclick="removePath(event)"
-                            id="{{bundle.path}}">
+                            id="{{ bundle.path }}">
                         </i>
                     </td>
                 </tr>
@@ -138,15 +130,14 @@
         <div class="row p-2">
             <div class="col">
                 <p><b>optional arguments</b></p>
-                {{ form_check("--stats", "stats") }}
-                {{ form_check("--list", "list") }}
-
-                {{ form_check("--json", "json") }}
-                {{ form_check("--no-cache-sync", "no_cache_sync") }}
-                {{ form_check("--content-from-command", "content_from_command") }}
-                {{ form_check("--paths-from-stdin", "paths_from_stdin") }}
-                {{ form_check("--paths-from-command", "paths_from_command") }}
-                {{ form_check("--one-file-system", "one_file_system") }}
+                {{ form_check('--stats', 'stats') }}
+                {{ form_check('--list', 'list') }}
+                {{ form_check('--json', 'json') }}
+                {{ form_check('--no-cache-sync', 'no_cache_sync') }}
+                {{ form_check('--content-from-command', 'content_from_command') }}
+                {{ form_check('--paths-from-stdin', 'paths_from_stdin') }}
+                {{ form_check('--paths-from-command', 'paths_from_command') }}
+                {{ form_check('--one-file-system', 'one_file_system') }}
                 <hr>
                 {{ text_input("--filter", "filter", value=bundle["filter"]) }}
                 {{ text_input("--stdin-name", "stdin_name", value=bundle["stdin_name"]) }}
@@ -158,36 +149,36 @@
             </div>
             <div class="col">
                 <p><b>Include/Exclude options</b></p>
-                {{ form_check("--exclude-caches", "exclude_caches") }}
-                {{ form_check("--keep-exclude-tags", "keep_exclude_tags") }}
-                {{ form_check("--exclude-nodump", "exclude_nodump") }}
+                {{ form_check('--exclude-caches', 'exclude_caches') }}
+                {{ form_check('--keep-exclude-tags', 'keep_exclude_tags') }}
+                {{ form_check('--exclude-nodump', 'exclude_nodump') }}
                 <hr>
-                {{ text_input("--exclude-from", "exclude_from") }}
-                {{ text_input("--patterns-from", "patterns_from") }}
-                {{ text_input("--exclude-if-present", "exclude_if_present") }}
+                {{ text_input('--exclude-from', 'exclude_from') }}
+                {{ text_input('--patterns-from', 'patterns_from') }}
+                {{ text_input('--exclude-if-present', 'exclude_if_present') }}
             </div>
         </div>
         <hr>
         <div class="row p-2">
             <div class="col">
                 <p><b>Filesystem options</b></p>
-                {{ form_check("--one-file-system", "one_file_system") }}
-                {{ form_check("--numeric-ids", "numeric_ids") }}
-                {{ form_check("--noatime", "noatime") }}
-                {{ form_check("--atime", "atime") }}
-                {{ form_check("--noctime", "noctime") }}
-                {{ form_check("--nobirthtime", "nobirthtime") }}
-                {{ form_check("--noflags", "noflags") }}
-                {{ form_check("--noacls", "noacls") }}
-                {{ form_check("--noxattrs", "noxattrs") }}
-                {{ form_check("--sparse", "sparse") }}
-                {{ form_check("--read-special", "read_special") }}
+                {{ form_check('--one-file-system', 'one_file_system') }}
+                {{ form_check('--numeric-ids', 'numeric_ids') }}
+                {{ form_check('--noatime', 'noatime') }}
+                {{ form_check('--atime', 'atime') }}
+                {{ form_check('--noctime', 'noctime') }}
+                {{ form_check('--nobirthtime', 'nobirthtime') }}
+                {{ form_check('--noflags', 'noflags') }}
+                {{ form_check('--noacls', 'noacls') }}
+                {{ form_check('--noxattrs', 'noxattrs') }}
+                {{ form_check('--sparse', 'sparse') }}
+                {{ form_check('--read-special', 'read_special') }}
                 <hr>
                 {{ text_input("--files-cache", "files_cache", value="ctime,size,inode") }}
             </div>
             <div class="col">
                 <p><b>Archive options</b></p>
-                {{ text_input("--comment", "comment") }}
+                {{ text_input('--comment', 'comment') }}
                 <!-- TODO: Default timestamp in settings table -->
                 {{ text_input("--timestamp", "timestamp", value="UTC") }}
                 {{ text_input("--checkpoint-interval", "checkpoint_interval", value="1800") }}
@@ -199,36 +190,52 @@
 
     <div class="p-2 border rounded bg-body-tertiary">
         <p class="p-2">
-            Optional cron schedule: <br>
+            Optional cron schedule:
+            <br>
             If you're unsure how to format your cron schedule, you can use the following
             tool to help you: <a href="https://crontab.guru/" target="_blank">Crontab Guru</a>.
         </p>
         <div class="hstack p-2">
             <div class="vstack">
                 <label for="cron_minute" class="form-label">Minute</label>
-                <input type="text" class="form-control" name="cron_minute" value="{{ bundle['cron_minute'] }}">
+                <input type="text"
+                    class="form-control"
+                    name="cron_minute"
+                    value="{{ bundle['cron_minute'] }}">
             </div>
             <div class="vstack">
                 <label for="cron_hour" class="form-label">Hour</label>
-                <input type="text" class="form-control" name="cron_hour" value="{{ bundle.cron_hour }}">
+                <input type="text"
+                    class="form-control"
+                    name="cron_hour"
+                    value="{{ bundle.cron_hour }}">
             </div>
             <div class="vstack">
                 <label for="cron_day" class="form-label">Day of Month</label>
-                <input type="text" class="form-control" name="cron_day" value="{{ bundle['cron_day'] }}">
+                <input type="text"
+                    class="form-control"
+                    name="cron_day"
+                    value="{{ bundle['cron_day'] }}">
             </div>
             <div class="vstack">
                 <label for="cron_month" class="form-label">Month</label>
-                <input type="text" class="form-control" name="cron_month" value="{{ bundle['cron_month'] }}">
+                <input type="text"
+                    class="form-control"
+                    name="cron_month"
+                    value="{{ bundle['cron_month'] }}">
             </div>
             <div class="vstack">
                 <label for="cron_weekday" class="form-label">Day of Week</label>
-                <input type="text" class="form-control" name="cron_weekday" value="{{ bundle['cron_weekday'] }}">
+                <input type="text"
+                    class="form-control"
+                    name="cron_weekday"
+                    value="{{ bundle['cron_weekday'] }}">
             </div>
         </div>
     </div>
 
     <div class="p-2 border rounded bg-body-tertiary text-end">
-        {{bundle.id}}
+        {{ bundle.id }}
         <button type="submit" class="btn btn-primary">Submit</button>
     </div>
 
@@ -239,6 +246,7 @@
         const element = event.currentTarget;
         document.getElementById(element.id).remove();
     }
+
     function clearPath() {
         document.getElementById("include_path").value = "";
         document.getElementById("exclude_path").value = "";
