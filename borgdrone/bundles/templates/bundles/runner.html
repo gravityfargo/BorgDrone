@@ -1,5 +1,5 @@
-<span id="repo_id" class="d-none">{{bundle["repo_id"]}}</span>
-<span id="bundle_id" class="d-none">{{bundle["id"]}}</span>
+<span id="repo_id" class="d-none">{{ bundle["repo_id"] }}</span>
+<span id="bundle_id" class="d-none">{{ bundle["id"] }}</span>
 
 <div class="p-2 border-bottom bg-body-tertiary mb-2">
     <div class="hstack gap-3">
@@ -32,7 +32,10 @@
     document.getElementById("send_button").onclick = function () {
         let bundle_id = document.getElementById("bundle_id").textContent;
         let repo_id = document.getElementById("repo_id").textContent;
-        socket.emit('backup_start', { repo_id: repo_id, bundle_id: bundle_id });
+        socket.emit('backup_start', {
+            repo_id: repo_id,
+            bundle_id: bundle_id
+        });
     }
 
     document.getElementById("clear_button").onclick = function () {
@@ -40,38 +43,9 @@
     }
 
     socket.on('send_line', function (data) {
-        var text = data['line'];
+        var text = data['text'];
         let text_area = document.getElementById("text_area");
         text_area.textContent += text;
         window.scrollTo(0, document.body.scrollHeight);
     });
 </script>
-
-<!-- <h1>Flask-SocketIO Echo</h1>
-<form id="messageForm">
-    <input type="text" id="messageInput" placeholder="Enter a message">
-    <button type="submit">Send</button>
-</form>
-<div id="log"></div>
-
-<script>
-    var socket = io();
-
-    // Receive message from the server and display it
-    socket.on('message', function (msg) {
-        var log = document.getElementById('log');
-        var newMessage = document.createElement('p');
-        newMessage.textContent = msg;
-        log.appendChild(newMessage);
-    });
-
-    // Send message to the server on form submission
-    var form = document.getElementById('messageForm');
-    form.addEventListener('submit', function (event) {
-        event.preventDefault(); // Prevent form from submitting the traditional way
-        var messageInput = document.getElementById('messageInput');
-        var message = messageInput.value;
-        socket.send(message);  // Send the message to the server
-        messageInput.value = '';  // Clear the input field
-    });
-</script> -->
