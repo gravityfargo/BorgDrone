@@ -1,4 +1,14 @@
+import hashlib
 from datetime import datetime
+
+
+def hash_data(data) -> str:
+    """Hash data using SHA-256.
+
+    Used to easily compare data.
+    """
+    data_bytes = str(data).encode("utf-8")
+    return hashlib.sha256(data_bytes).hexdigest()
 
 
 def convert_bytes(size_in_bytes: int, base: int = 1000) -> str:
