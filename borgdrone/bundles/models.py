@@ -1,25 +1,31 @@
 from typing import List, Optional
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import Column, ForeignKey, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from borgdrone.extensions import db
+from borgdrone.extensions import Base, db
+
+association_table = Table(
+    "association_table",
+    Base.metadata,
+    Column("backupbundle_id", ForeignKey("backupbundle.id"), primary_key=True),
+    Column("backupdirectory_id", ForeignKey("backupdirectory.id"), primary_key=True),
+)
 
 
 class BackupBundle(db.Model):
     __tablename__ = "backupbundle"
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    # relationships
-    ## child
-
+    # child relationships
     repo_id: Mapped[int] = mapped_column(ForeignKey("repository.id"))
     repo = relationship("Repository", back_populates="backupbundles")
 
     ## parent
     backupdirectories: Mapped[List["BackupDirectory"]] = relationship(
-        "BackupDirectory", back_populates="backupbundle", cascade="all, delete"
+        secondary=association_table, back_populates="backupbundles", cascade="all, delete"
     )
+
     archives = relationship("Archive", back_populates="backupbundle", cascade="all, delete")
 
     # Cron job settings
@@ -53,12 +59,10 @@ class BackupDirectory(db.Model):
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    # relationships
-    ## child
-    backupbundle_id: Mapped[int] = mapped_column(ForeignKey("backupbundle.id"))
-    backupbundle = relationship("BackupBundle", back_populates="backupdirectories")
-
-    # archives = db.relationship("Archive", backref="backupdirectory", lazy=True)
+    # child relationships
+    backupbundles: Mapped[List[BackupBundle]] = relationship(
+        secondary=association_table, back_populates="backupdirectories"
+    )
 
     path: Mapped[str]
     permissions: Mapped[str]
