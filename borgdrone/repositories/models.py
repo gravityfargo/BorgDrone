@@ -5,6 +5,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from borgdrone.extensions import db
 
+ListRepository = list["Repository"]
+OptRepository = Optional["Repository"]
+OptListRepository = Optional[ListRepository]
+
 
 class Repository(db.Model):
     __tablename__ = "repository"
