@@ -1,11 +1,13 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
+import yaml
 from flask_login import current_user
-
+from sqlalchemy import select
+from flask import request
+from borgdrone.borg.constants import BORG_CREATE_COMMAND
 from borgdrone.extensions import db
 from borgdrone.helpers import bash, datahelpers, filemanager
 from borgdrone.logging import BorgdroneEvent
-from borgdrone.logging import logger as log
 from borgdrone.repositories import Repository
 
 from .models import BackupBundle, BackupDirectory
@@ -32,26 +34,30 @@ class BundleManager:
 
         return _log.return_success("Last Bundle Retrieved.")
 
-    def get_one(self, bundle_id: Optional[int] = None, repo_id: Optional[int] = None) -> BorgdroneEvent[BackupBundle]:
-
-        _log = BorgdroneEvent[BackupBundle]()
+    def get_one(
+        self, bundle_id: Optional[int] = None, repo_id: Optional[int] = None, command_line: Optional[str] = None
+    ) -> BorgdroneEvent[Optional[BackupBundle]]:
+        _log = BorgdroneEvent[Optional[BackupBundle]]()
         _log.event = "BundleManager.get_one"
 
         if repo_id:
-            instance = db.session.query(BackupBundle).filter(BackupBundle.repo_id == repo_id).first()
+            instance = db.session.scalars(select(BackupBundle).where(BackupBundle.repo_id == repo_id)).first()
         elif bundle_id:
-            instance = db.session.query(BackupBundle).filter(BackupBundle.id == bundle_id).first()
+            instance = db.session.scalars(select(BackupBundle).where(BackupBundle.id == bundle_id)).first()
+        elif command_line:
+            instance = db.session.scalars(
+                select(BackupBundle).where(BackupBundle.command_line == command_line)
+            ).first()
         else:
-            instance = (
-                db.session.query(BackupBundle).join(Repository).filter(Repository.user_id == current_user.id).first()
-            )
+            instance = db.session.scalars(select(BackupBundle).where(BackupBundle.user_id == current_user.id)).first()
 
-        if instance:
-            _log.set_data(instance)
+        _log.set_data(instance)
+        _log.status = "SUCCESS"
+        _log.message = "BackupBundle Retrieved."
 
-        return _log.return_success("Bundle Retrieved.")
+        return _log  # Dont need to log this, so not using return_success()
 
-    def get_all(self, repo_id: Optional[int] = None) -> BorgdroneEvent[List[BackupBundle]]:
+    def get_all(self, repo_id: Optional[str] = None) -> BorgdroneEvent[List[BackupBundle]]:
         _log = BorgdroneEvent[List[BackupBundle]]()
         _log.event = "BundleManager.get_all"
 
@@ -65,8 +71,8 @@ class BundleManager:
         _log.set_data(instances)
         return _log.return_success("Bundles Retrieved.")
 
-    def create_bundle(self, **kwargs) -> BorgdroneEvent:
-        _log = BorgdroneEvent()
+    def create_bundle(self, **kwargs) -> BorgdroneEvent[BackupBundle]:
+        _log = BorgdroneEvent[BackupBundle]()
         _log.event = "BundleManager.create_bundle"
 
         bundle = BackupBundle()
@@ -78,24 +84,50 @@ class BundleManager:
         bundle.cron_weekday = kwargs["cron_weekday"]
         bundle.comment = kwargs.get("comment", None)
         bundle.commit()
+        _log.set_data(bundle)
 
-        bdm = BundleDirectoryManager()
-        number_of_dirs = 0
+        included_dirs: list = []
+        exclude_dirs: list = []
 
         for key, value in kwargs.items():
             if key.startswith("includedir"):
-                # bdm.create_bundledirectory(bundle_id=bundle.id, path=value)
-                # number_of_dirs += 1
-                print(key, value)
-                print()
+                yaml_data: Dict[str, Any] = yaml.safe_load(value)
+                yaml_data["bundle_id"] = bundle.id
+
+                included_dirs.append(yaml_data.get("path"))
+
+                bdm = BundleDirectoryManager()
+                result_log = bdm.create_bundledirectory(**yaml_data)
+                if result_log.status == "FAILURE":
+                    bundle.delete()
+                    return _log.return_failure(result_log.error_message)
 
             elif key.startswith("excludedir"):
-                pass
-                # bdm.create_bundledirectory(bundle_id=bundle.id, path=value, exclude=True)
+                yaml_data: Dict[str, Any] = yaml.safe_load(value)
+                yaml_data["bundle_id"] = bundle.id
+                yaml_data["exclude"] = True
 
-        if number_of_dirs == 0:
+                exclude_dirs.append("--exclude")
+                exclude_dirs.append(yaml_data.get("path"))
+
+                bdm = BundleDirectoryManager()
+                result_log = bdm.create_bundledirectory(**yaml_data)
+                if result_log.status == "FAILURE":
+                    bundle.delete()
+                    return _log.return_failure(result_log.error_message)
+
+        if not included_dirs:
             bundle.delete()
             return _log.return_failure("You must include at least one include directory.")
+
+        # "--list",
+        backup_command = BORG_CREATE_COMMAND.copy()
+        backup_command.extend(exclude_dirs)
+        backup_command.append(f"{bundle.repo.path}::{bundle.repo.name_format}")
+        backup_command.extend(included_dirs)
+
+        bundle.command_line = " ".join(backup_command)
+        bundle.commit()
 
         return _log.return_success("Bundle created successfully.")
 
@@ -105,10 +137,10 @@ class BundleManager:
 
         result_log = self.get_one(bundle_id=bundle_id)
 
-        if not result_log or not result_log.data:
-            return _log.return_failure("Bundle not found.")
+        if not (bundle := result_log.get_data()):
+            return _log.not_found_message("Bundle")
 
-        result_log.data.delete()
+        bundle.delete()
 
         return _log.return_success("Bundle deleted successfully.")
 
@@ -133,33 +165,42 @@ class BundleManager:
 
         return _log.return_success("Directory exists.")
 
+    def create_backup(self, bundle_id: int) -> BorgdroneEvent[None]:
+        _log = BorgdroneEvent[None]()
+        _log.event = "BundleManager.create_backup"
+
+        result_log = self.get_one(bundle_id=bundle_id)  # get the bundle
+        if not (bundle := result_log.get_data()):
+            return _log.not_found_message("Bundle")
+
+        if not bundle.command_line:
+            return _log.return_failure("Bundle has no command line set.")
+
+        bash.popen(bundle.command_line.split(" "))
+
+        return _log.return_success("Backup created successfully.")
+
 
 class BundleDirectoryManager:
     def __init__(self):
         pass
 
-    # get_last
+    def create_bundledirectory(self, **kwargs) -> BorgdroneEvent[Optional[BackupDirectory]]:
+        _log = BorgdroneEvent[Optional[BackupDirectory]]()
+        _log.event = "BundleDirectoryManager.create_bundledirectory"
 
-    def get_one(self, bundle_directory_id: int) -> None:
-        pass
+        try:
+            backup_directory = BackupDirectory()
+            backup_directory.backupbundle_id = kwargs["bundle_id"]
+            backup_directory.path = kwargs["path"]
+            backup_directory.permissions = kwargs["permissions"]
+            backup_directory.owner = kwargs["owner"]
+            backup_directory.group = kwargs["group"]
+            backup_directory.exclude = kwargs.get("exclude", False)
+            backup_directory.commit()
+            _log.set_data(backup_directory)
 
-    def get_all(self, repo_id: Optional[int] = None, bundle_id: Optional[int] = None) -> None:
-        pass
+        except Exception as e:
+            return _log.return_failure(str(e))
 
-    def create_bundledirectory(self, bundle_id: int, path: str, exclude: bool = False, commit: bool = True) -> None:
-        log.debug(
-            f"Creating new bundle directory with bundle_id ({bundle_id}), path ({path}), and exclude ({exclude})"
-        )
-        bd = BackupDirectory()
-        bd.backupbundle_id = bundle_id
-        bd.path = path
-        if exclude:
-            bd.exclude = True
-
-        if commit:
-            bd.commit()
-        else:
-            bd.add_to_session()
-
-    def delete_bundledirectory(self, repo_id: Optional[int] = None, bundle_id: Optional[int] = None) -> None:
-        pass
+        return _log.return_success("Backup Directory created successfully.")
