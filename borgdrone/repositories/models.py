@@ -16,6 +16,8 @@ class Repository(db.Model):
     ## parent
     backupbundles = relationship("BackupBundle", back_populates="repo", cascade="all, delete")
 
+    name_format: Mapped[str] = mapped_column(default="{hostname}-{user}-{now}")
+
     # RepositoryKey
     id: Mapped[str] = mapped_column(primary_key=True)
     path: Mapped[str] = mapped_column(unique=True)  # location
