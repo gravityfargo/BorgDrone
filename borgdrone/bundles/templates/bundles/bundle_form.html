@@ -195,6 +195,7 @@
             If you're unsure how to format your cron schedule, you can use the following
             tool to help you: <a href="https://crontab.guru/" target="_blank">Crontab Guru</a>.
         </p>
+        <input type="text" name="bundle_id" value="{{ bundle['id'] }}" hidden>
         <div class="hstack p-2">
             <div class="vstack">
                 <label for="cron_minute" class="form-label">Minute</label>
@@ -235,7 +236,6 @@
     </div>
 
     <div class="p-2 border rounded bg-body-tertiary text-end">
-        {{ bundle.id }}
         <button type="submit" class="btn btn-primary">Submit</button>
     </div>
 
