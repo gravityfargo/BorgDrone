@@ -5,6 +5,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from borgdrone.extensions import db
 
+OptUsers = Optional["Users"]
+
 
 class Users(UserMixin, db.Model):
     __tablename__ = "users"
