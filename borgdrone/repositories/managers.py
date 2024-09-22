@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 from flask_login import current_user
+from sqlalchemy import select
 
 from borgdrone.borg import borg_runner
 from borgdrone.extensions import db
@@ -15,21 +16,26 @@ class RepositoryManager:
     def __init__(self):
         pass
 
-    def get_one(self, repo_id: Optional[int] = None, path: Optional[str] = None) -> BorgdroneEvent[Repository]:
-        _log = BorgdroneEvent[Repository]()
+    def get_one(
+        self, repo_id: Optional[str] = None, path: Optional[str] = None
+    ) -> BorgdroneEvent[Optional[Repository]]:
+        _log = BorgdroneEvent[Optional[Repository]]()
         _log.event = "RepositoryManager.get_one"
 
         if repo_id is not None:
-            instance = db.session.query(Repository).filter(Repository.id == repo_id).first()
+            instance = db.session.scalars(select(Repository).where(Repository.id == repo_id)).first()
+
         elif path is not None:
-            instance = db.session.query(Repository).filter(Repository.path == path).first()
+            instance = db.session.scalars(select(Repository).where(Repository.path == path)).first()
+
         else:
-            instance = db.session.query(Repository).filter(Repository.user_id == current_user.id).first()
+            instance = db.session.scalars(select(Repository).where(Repository.user_id == current_user.id)).first()
 
-        if instance:
-            _log.set_data(instance)
+        _log.set_data(instance)
+        _log.status = "SUCCESS"
+        _log.message = "Archive Retrieved."
 
-        return _log.return_success("Repository retrieved.")
+        return _log  # Dont need to log this, so not using return_success()
 
     def get_all(self) -> BorgdroneEvent[List[Repository]]:
         _log = BorgdroneEvent[List[Repository]]()
@@ -128,7 +134,7 @@ class RepositoryManager:
         _log.set_data(instance)
         return _log.return_success("Repository info retrieved.")
 
-    def delete_repo(self, repo_id: int) -> BorgdroneEvent[None]:
+    def delete_repo(self, repo_id: str) -> BorgdroneEvent[None]:
         _log = BorgdroneEvent[None]()
         _log.event = "RepositoryManager.delete_repo"
 
@@ -148,7 +154,7 @@ class RepositoryManager:
         return _log.return_success("Repository deleted from filesystem.")
 
     def update_repository_info(
-        self, repo_id: Optional[int] = None, path: Optional[str] = None
+        self, repo_id: Optional[str] = None, path: Optional[str] = None
     ) -> BorgdroneEvent[None]:
         _log = BorgdroneEvent[None]()
         _log.event = "RepositoryManager.update_repository_info"
