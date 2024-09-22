@@ -5,13 +5,9 @@ from flask_login import login_required
 
 from borgdrone.helpers import ResponseHelper, datahelpers
 
-from .managers import RepositoryManager
-
-# from borgdrone.logging import BorgdroneEvent
-
+from . import RepositoryManager as repository_manager
 
 repositories_blueprint = Blueprint("repositories", __name__, template_folder="templates")
-repo_manager = RepositoryManager()
 
 
 @repositories_blueprint.route("/")
@@ -19,7 +15,7 @@ repo_manager = RepositoryManager()
 def index():
     rh = ResponseHelper(get_template="repositories/index.html")
 
-    result_log = repo_manager.get_all()
+    result_log = repository_manager.get_all()
 
     rh.context_data = {"repos": result_log.data, "convert_bytes": datahelpers.convert_bytes}
     rh.borgdrone_return = result_log.borgdrone_return()
@@ -39,14 +35,14 @@ def create_repo() -> Any:
     if request.method == "POST":
         form_data = request.form
 
-        result_log = repo_manager.create_repo(form_data["path"], form_data["encryption"])
+        result_log = repository_manager.create_repo(form_data["path"], form_data["encryption"])
         rh.borgdrone_return = result_log.borgdrone_return()
 
         if result_log.status == "FAILURE":
             rh.toast_error = result_log.error_message
             return rh.respond(error=True)
 
-        repos = repo_manager.get_all()
+        repos = repository_manager.get_all()
         rh.context_data = {"repos": repos.data, "convert_bytes": datahelpers.convert_bytes}
         rh.toast_success = result_log.message
         return rh.respond()
@@ -61,7 +57,7 @@ def get_repository_info() -> Any:
         post_success_template="repositories/repo_stats.html",
     )
 
-    result_log = repo_manager.get_repository_info(path=request.form["path"])
+    result_log = repository_manager.get_repository_info(path=request.form["path"])
     rh.borgdrone_return = result_log.borgdrone_return()
 
     if result_log.status == "FAILURE":
@@ -82,7 +78,7 @@ def import_repo() -> Any:
     )
 
     if request.method == "POST":
-        result_log = repo_manager.import_repo(path=request.form["path"])
+        result_log = repository_manager.import_repo(path=request.form["path"])
         rh.borgdrone_return = result_log.borgdrone_return()
 
         if result_log.status == "FAILURE":
@@ -101,7 +97,7 @@ def import_repo() -> Any:
 def delete_repo(repo_id) -> Any:
     rh = ResponseHelper()
 
-    result_log = repo_manager.delete_repo(repo_id)
+    result_log = repository_manager.delete_repo(repo_id)
     rh.borgdrone_return = result_log.borgdrone_return()
 
     if result_log.status == "FAILURE":
@@ -117,7 +113,7 @@ def delete_repo(repo_id) -> Any:
 def update_stats(repo_id):
     rh = ResponseHelper()
 
-    result_log = repo_manager.update_repository_info(repo_id=repo_id)
+    result_log = repository_manager.update_repository_info(repo_id=repo_id)
     rh.borgdrone_return = result_log.borgdrone_return()
 
     if result_log.status == "FAILURE":

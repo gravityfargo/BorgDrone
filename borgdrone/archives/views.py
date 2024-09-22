@@ -2,12 +2,11 @@ from flask import Blueprint, request
 from flask_login import login_required
 
 from borgdrone.helpers import ResponseHelper
-from borgdrone.repositories import RepositoryManager
+from borgdrone.repositories import RepositoryManager as repository_manager
 
-from .managers import ArchivesManager
+from . import ArchivesManager as archive_manager
 
 archives_blueprint = Blueprint("archives", __name__, template_folder="templates")
-archive_manager = ArchivesManager()
 
 
 @archives_blueprint.route("/")
@@ -15,7 +14,7 @@ archive_manager = ArchivesManager()
 def index():
     rh = ResponseHelper(get_template="archives/index.html")
 
-    result_log = RepositoryManager().get_all()
+    result_log = repository_manager.get_all()
     rh.context_data = {"repositories": result_log.get_data()}
 
     return rh.respond()

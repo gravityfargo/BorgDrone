@@ -7,13 +7,12 @@ from flask_socketio import emit
 
 from borgdrone.extensions import socketio
 from borgdrone.helpers import ResponseHelper
-from borgdrone.repositories import RepositoryManager
+from borgdrone.repositories import RepositoryManager as repository_manager
 
-from .managers import BundleManager
+from . import BundleManager as bundle_manager
 from .models import BackupBundle
 
 bundles_blueprint = Blueprint("bundles", __name__, template_folder="templates")
-bundle_manager = BundleManager()
 
 
 @bundles_blueprint.route("/")
@@ -95,12 +94,11 @@ def bundle_form(purpose, bundle_id) -> Any:
         post_error_template="bundles/bundle_form.html",
     )
 
-    result_log = RepositoryManager().get_all()
+    result_log = repository_manager.get_all()
     rh.context_data = {"repos": result_log.get_data(), "form_purpose": purpose}
 
     if request.method == "POST":
         data = request.form
-
         if purpose == "create":
             result_log = bundle_manager.create_bundle(**data)
             rh.borgdrone_return = result_log.borgdrone_return()
@@ -108,11 +106,19 @@ def bundle_form(purpose, bundle_id) -> Any:
             if result_log.status == "FAILURE":
                 rh.toast_error = result_log.error_message
                 rh.context_data["bundle"] = result_log.data
-
                 return rh.respond(error=True)
 
-            rh.toast_success = result_log.message
-            return rh.respond(redirect_url="bundles.index")
+        else:  # update
+            result_log = bundle_manager.update_bundle(bundle_id, **data)
+            rh.borgdrone_return = result_log.borgdrone_return()
+
+            if result_log.status == "FAILURE":
+                rh.toast_error = result_log.error_message
+                rh.context_data["bundle"] = result_log.data
+                return rh.respond(error=True)
+
+        rh.toast_success = result_log.message
+        return rh.respond(redirect_url="bundles.index")
 
     # GET
     if purpose == "create":
@@ -128,13 +134,11 @@ def bundle_form(purpose, bundle_id) -> Any:
 
     elif purpose == "update":  # TODO
         result_log = bundle_manager.get_one(bundle_id=bundle_id)
+        rh.borgdrone_return = result_log.borgdrone_return()
+
         if result_log.status == "FAILURE":
             rh.toast_error = result_log.error_message
-            return rh.respond()
-
-        if not result_log.data:
-            rh.toast_error = "Bundle not found."
-            return rh.respond()
+            return rh.respond(empty=True)
 
         rh.context_data["bundle"] = result_log.get_data()
 

@@ -1,9 +1,9 @@
 from flask import Blueprint, request
-from flask_login import current_user, login_required
+from flask_login import login_required
 
 from borgdrone.helpers import ResponseHelper
 
-from .managers import UserManager
+from . import UserManager as user_manager
 
 auth_blueprint = Blueprint("auth", __name__, template_folder="templates")
 
@@ -22,14 +22,12 @@ def login():
         password: str = form_data["password"]
         remember: bool = form_data.get("remember", default=False, type=bool)
 
-        um = UserManager()
-
-        result_log = um.get(username=user_name)
+        result_log = user_manager.get_one(username=user_name)
         if not (user := result_log.data):
             rh.toast_error = "User not found."
             return rh.respond(error=True)
 
-        result_log = um.login(user, password, remember)
+        result_log = user_manager.login(user, password, remember)
         rh.borgdrone_return = result_log.borgdrone_return()
 
         if not (user := result_log.get_data()):
@@ -49,8 +47,7 @@ def login():
 def logout():
     rh = ResponseHelper()
 
-    um = UserManager()
-    result_log = um.logout()
+    result_log = user_manager.logout()
     rh.toast_success = result_log.message
     rh.borgdrone_return = result_log.borgdrone_return()
 
