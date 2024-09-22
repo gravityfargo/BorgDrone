@@ -1,0 +1,32 @@
+{% for archive in archives %}
+<div class="d-flex flex-column mb-4 shadow border" hx-target="this">
+    <div class="btn-group ms-auto">
+        <button class="btn btn-danger btn-sm"
+            hx-delete="">
+            <i class="bi bi-trash3-fill"></i> Delete
+        </button>
+    </div>
+    <table class="table transparent-table">
+        <tr>
+            <th>Name</th>
+            <td>{{ archive.name }}</td>
+        </tr>
+        <tr>
+            <th>Comment</th>
+            <td>{{ archive.comment }}</td>
+        </tr>
+        <tr>
+            <th>Start</th>
+            <td>{{ archive.start }}</td>
+            <th>End</th>
+            <td>{{ archive.end }}</td>
+        </tr>
+        <tr>
+            <th>Hostname</th>
+            <td>{{ archive.hostname }}</td>
+            <th>tam</th>
+            <td>{{ archive.tam }}</td>
+        </tr>
+    </table>
+</div>
+{% endfor %}
