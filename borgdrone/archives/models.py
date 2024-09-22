@@ -1,7 +1,13 @@
+from typing import List, Optional
+
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from borgdrone.extensions import db
+
+OptArchive = Optional["Archive"]
+OptListArchive = Optional[List["Archive"]]
+ListArchive = List["Archive"]
 
 
 class Archive(db.Model):
