@@ -1,4 +1,22 @@
 <script>
-    set_active_tab('archives_item');
+     select_tab("{{ selected_tab }}");
 </script>
-Archives
+<div class="p-2 border-bottom bg-body-tertiary mb-2 shadow">
+    <form class="hstack justify-content-between"
+          hx-post="{{ url_for('archives.get_archives') }}"
+          hx-target="#archives"
+          hx-swap="innerHTML">
+        <div class="d-flex flex-column gap-1 flex-shrink-1">
+            <h5>Archives</h5>
+            <span>Choose a Repository</span>
+
+            <select name="repo_id" class="form-select">
+                {% for repo in repositories %}<option value="{{ repo.id }}">{{ repo.path }}</option>{% endfor %}
+            </select>
+
+        </div>
+        <button type="submit" class="btn btn-primary">Get Archives</button>
+    </form>
+</div>
+
+<div id="archives"></div>
