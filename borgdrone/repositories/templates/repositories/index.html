@@ -10,16 +10,18 @@
                 archives."
             </span>
         </div>
-        <div class="btn-group" role="group" aria-label="Basic example">
-            <button type="button" class="btn btn-primary" hx-target="#content"
-                hx-get="{{ url_for('repositories.create_repo') }}">Create
-            </button>
+        <div class="btn-group" role="group">
+            <button type="button"
+                class="btn btn-primary"
+                hx-target="#content"
+                hx-get="{{ url_for('repositories.create_repo') }}">Create</button>
 
-            <button type="button" class="btn btn-primary" hx-target="#content"
-                hx-get="{{ url_for('repositories.import_repo') }}">Import
-            </button>
+            <button type="button"
+                class="btn btn-primary"
+                hx-target="#content"
+                hx-get="{{ url_for('repositories.import_repo') }}">Import</button>
         </div>
     </div>
 </div>
 
-{% include 'repositories/repos.html' %}
+{% include "repositories/repos.html" %}
