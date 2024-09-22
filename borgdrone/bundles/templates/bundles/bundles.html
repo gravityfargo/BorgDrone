@@ -1,7 +1,9 @@
 {% for bundle in bundles %}
 
-<div class="vstack shadow p-2 mb-3 border" id="{{bundle.id}}" hx-target="this">
-    <div class="btn-group">
+<div class="vstack shadow p-2 mb-3 border"
+    id="{{ bundle.id }}"
+    hx-target="this">
+    <div class="btn-group ms-auto">
         <button class="btn btn-primary btn-sm"
             hx-target="#content"
             hx-push-url="true"
@@ -31,14 +33,14 @@
             <td>{{ bundle.last_backup }}</td>
         </tr>
     </table>
-    <hr>
+    <hr />
     <div class="d-flex">
         <div class="flex-fill vstack">
             <b>Included Directories:</b>
             <ul class="list-group">
                 {% for directory in bundle.backupdirectories %}
                 {% if not directory.exclude %}
-                <li class="list-group-item">{{directory.path}}</li>
+                <li class="list-group-item">{{ directory.path }}</li>
                 {% endif %}
                 {% endfor %}
             </ul>
@@ -48,7 +50,7 @@
             <ul class="list-group">
                 {% for directory in bundle.backupdirectories %}
                 {% if directory.exclude %}
-                <li class="list-group-item">{{directory.path}}</li>
+                <li class="list-group-item">{{ directory.path }}</li>
                 {% endif %}
                 {% endfor %}
             </ul>
