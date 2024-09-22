@@ -23,19 +23,20 @@ def login():
         remember: bool = form_data.get("remember", default=False, type=bool)
 
         um = UserManager()
-        user = um.get(username=user_name)
 
-        if not user:
+        result_log = um.get(username=user_name)
+        if not (user := result_log.data):
             rh.toast_error = "User not found."
-            rh.borgdrone_return = "Auth.UserNotFound"
             return rh.respond(error=True)
 
-        if not um.login(user, password, remember):
-            rh.toast_error = "Invalid credentials."
-            rh.borgdrone_return = "Auth.InvalidCredentials"
+        result_log = um.login(user, password, remember)
+        rh.borgdrone_return = result_log.borgdrone_return()
+
+        if not (user := result_log.get_data()):
+            rh.toast_error = result_log.error_message
             return rh.respond(error=True)
 
-        rh.borgdrone_return = "Auth.LoginSuccess"
+        rh.toast_success = result_log.message
         return rh.respond()
 
     rh.htmx_refresh = True
@@ -49,12 +50,8 @@ def logout():
     rh = ResponseHelper()
 
     um = UserManager()
-    user = um.get(user_id=current_user.id)
-    if user and um.logout():
-        rh.borgdrone_return = "Auth.LogoutSuccess"
-        rh.toast_success = "You have been logged out."
-    else:
-        rh.borgdrone_return = "Auth.LogoutFailure"
-        rh.toast_error = "An error occurred while logging out."
+    result_log = um.logout()
+    rh.toast_success = result_log.message
+    rh.borgdrone_return = result_log.borgdrone_return()
 
     return rh.respond()
