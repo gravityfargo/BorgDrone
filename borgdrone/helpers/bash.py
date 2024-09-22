@@ -47,7 +47,10 @@ def run(command: str | list, capture_output=True, text_mode=True):
     if isinstance(command, str):
         cmd = command.split(" ")
     else:
-        cmd = command
+        # The list constants contain list items with aguments that need to be separated
+        command = " ".join(command)
+        cmd = command.split(" ")
+
     try:
         result = subprocess.run(cmd, capture_output=capture_output, text=text_mode, check=True)
         return {"stdout": result.stdout, "returncode": int(result.returncode)}
