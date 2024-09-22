@@ -23,8 +23,12 @@ class ArchivesManager:
         instance = db.session.scalars(select(Archive).where(Archive.id == archive_id)).first()
 
         _log.set_data(instance)
-        _log.status = "SUCCESS"
-        _log.message = "Archive Retrieved."
+        if not instance:
+            _log.status = "FAILURE"
+            _log.error_message = "Archive not found."
+        else:
+            _log.status = "SUCCESS"
+            _log.message = "Archive Retrieved."
 
         return _log  # Dont need to log this, so not using return_success()
 

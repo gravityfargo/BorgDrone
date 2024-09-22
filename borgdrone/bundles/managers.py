@@ -1,9 +1,10 @@
 from typing import Any, Dict, List, Optional
 
 import yaml
+from flask import request
 from flask_login import current_user
 from sqlalchemy import select
-from flask import request
+
 from borgdrone.borg.constants import BORG_CREATE_COMMAND
 from borgdrone.extensions import db
 from borgdrone.helpers import bash, datahelpers, filemanager
@@ -52,8 +53,13 @@ class BundleManager:
             instance = db.session.scalars(select(BackupBundle).where(BackupBundle.user_id == current_user.id)).first()
 
         _log.set_data(instance)
-        _log.status = "SUCCESS"
-        _log.message = "BackupBundle Retrieved."
+
+        if not instance:
+            _log.status = "FAILURE"
+            _log.error_message = "Bundle not found."
+        else:
+            _log.status = "SUCCESS"
+            _log.message = "BackupBundle Retrieved."
 
         return _log  # Dont need to log this, so not using return_success()
 

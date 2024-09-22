@@ -40,7 +40,14 @@ class UserManager:
             instance = None
 
         _log.set_data(instance)
-        return _log.return_success("User retrieved.")
+        if not instance:
+            _log.status = "FAILURE"
+            _log.error_message = "User not found."
+        else:
+            _log.status = "SUCCESS"
+            _log.message = "User Retrieved."
+
+        return _log  # Dont need to log this, so not using return_success()
 
     def login(self, user: Users, password: str, remember: bool = False) -> BorgdroneEvent[None]:
         _log = BorgdroneEvent[Optional[Users]]()
