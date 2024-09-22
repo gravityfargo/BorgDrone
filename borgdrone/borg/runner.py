@@ -1,29 +1,21 @@
 import json
-from typing import Dict
+from typing import Dict, List
 
 from borgdrone.helpers import bash
 from borgdrone.logging import BorgdroneEvent
 from borgdrone.logging import logger as log
 
+from .constants import (
+    BORG_DELETE_COMMAND,
+    BORG_INFO_COMMAND,
+    BORG_INIT_COMMAND,
+    BORG_LIST_COMMAND,
+)
+
 
 class BorgRunner:
     def __init__(self):
         pass
-
-    def run(self, purpose: str, **kwargs) -> BorgdroneEvent:
-        match purpose:
-            case "create_repo":
-                result_log = self._create_repository(kwargs["path"], kwargs["encryption"])
-            case "delete_repo":
-                result_log = self.__delete_repository(kwargs["path"])
-            case "get_repository_info":
-                result_log = self.__repository_info(kwargs["path"])
-            case _:
-                result_log = BorgdroneEvent()
-                result_log.status = "FAILURE"
-                result_log.error_message = "Invalid BorgRunner purpose."
-
-        return result_log
 
     def __process_error(self, result_log: BorgdroneEvent, error: str) -> BorgdroneEvent:
         result_log.status = "FAILURE"
@@ -48,12 +40,15 @@ class BorgRunner:
 
         return result_log
 
-    def _create_repository(self, path: str, encryption: str) -> BorgdroneEvent:
-        result_log = BorgdroneEvent()
+    def create_repository(self, path: str, encryption: str) -> BorgdroneEvent[None]:
+        result_log = BorgdroneEvent[None]()
         result_log.event = "BorgRunner._create_repository"
 
-        command = f"borg --log-json init --encryption={encryption} {path}"
-        result_log.message = command
+        command = BORG_INIT_COMMAND.copy()
+        command[1] = f"--encryption={encryption}"
+        command[2] = path
+
+        result_log.message = " ".join(command)
 
         result = bash.run(command)
         if "stderr" in result:
@@ -66,12 +61,14 @@ class BorgRunner:
 
         return result_log
 
-    def __repository_info(self, path: str) -> BorgdroneEvent[Dict[str, str]]:
-        result_log = BorgdroneEvent[Dict[str, str]]()
+    def repository_info(self, path: str, first: int = 0, last: int = 0) -> BorgdroneEvent[dict]:
+        result_log = BorgdroneEvent[dict]()
         result_log.event = "BorgRunner.repository_info"
 
-        command = f"borg --log-json info --json {path}"
-        result_log.message = command
+        command = BORG_INFO_COMMAND.copy()
+        command[1] = path
+
+        result_log.message = " ".join(command)
 
         result = bash.run(command)
         if "stderr" in result:
@@ -84,20 +81,45 @@ class BorgRunner:
 
         return result_log
 
-    def __delete_repository(self, path: str) -> BorgdroneEvent:
-        result_log = BorgdroneEvent()
-        result_log.event = "BorgRunner.delete_repository"
+    def delete_repository(self, path: str) -> BorgdroneEvent[None]:
+        _log = BorgdroneEvent[None]()
+        _log.event = "BorgRunner.delete_repository"
 
-        command = f"borg --log-json delete --force {path}"
-        result_log.message = command
+        command = BORG_DELETE_COMMAND.copy()
+        command[1] = path
+
+        _log.message = " ".join(command)
 
         result = bash.run(command)
         if "stderr" in result:
             # Possible:
             # - Repository.DoesNotExist
-            self.__process_error(result_log, result["stderr"])
+            self.__process_error(_log, result["stderr"])
 
         else:
-            result_log.status = "SUCCESS"
+            _log.status = "SUCCESS"
 
-        return result_log
+        return _log
+
+    def list_archives(self, repo_path: str, first: int = 0, last: int = 0) -> BorgdroneEvent[List[Dict[str, str]]]:
+        _log = BorgdroneEvent[List[Dict[str, str]]]()
+        _log.event = "BorgRunner.get_archives"
+
+        command = BORG_LIST_COMMAND.copy()
+        command[1] = repo_path
+
+        if first > 0:
+            command.insert(3, f"--first {str(first)}")
+        elif last > 0:
+            command.insert(3, f"--last {str(last)}")
+
+        result = bash.run(command)
+        if "stderr" in result:
+            # Possible:
+            # - Repository.DoesNotExist
+            self.__process_error(_log, result["stderr"])
+        else:
+            data = json.loads(result["stdout"])
+            _log.set_data(data["archives"])
+
+        return _log
