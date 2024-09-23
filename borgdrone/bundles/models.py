@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from sqlalchemy import Column, ForeignKey, Table
+from sqlalchemy import Column, ForeignKey, Table, update
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from borgdrone.extensions import Base, db
@@ -59,6 +59,14 @@ class BackupBundle(db.Model):
         db.session.delete(self)
         db.session.commit()
 
+    def update_kwargs(self, **kwargs):
+        stmt = update(BackupBundle).where(BackupBundle.id == self.id).values(**kwargs)
+        db.session.execute(stmt)
+        db.session.commit()
+
+    def update(self):
+        db.session.commit()
+
 
 class BackupDirectory(db.Model):
     __tablename__ = "backupdirectory"
@@ -83,3 +91,15 @@ class BackupDirectory(db.Model):
 
     def add_to_session(self):
         db.session.add(self)
+
+    def update_kwargs(self, **kwargs):
+        stmt = update(BackupDirectory).where(BackupDirectory.id == self.id).values(**kwargs)
+        db.session.execute(stmt)
+        db.session.commit()
+
+    def update(self):
+        db.session.commit()
+
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()

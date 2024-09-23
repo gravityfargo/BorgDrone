@@ -14,7 +14,7 @@
 
     <div class="p-2 border rounded bg-body-tertiary">
         <label for="repo" class="form-label">Choose a Repository</label>
-        <select name="repo_id" class="form-select" id="repo">
+        <select name="repo_db_id" class="form-select" id="repo">
             {% for repo in repos %}<option value="{{ repo.id }}" selected>{{ repo.path }}</option>{% endfor %}
         </select>
     </div>

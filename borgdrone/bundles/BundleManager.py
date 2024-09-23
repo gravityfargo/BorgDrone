@@ -9,9 +9,10 @@ from borgdrone.extensions import db
 from borgdrone.helpers import bash, datahelpers, filemanager
 from borgdrone.logging import BorgdroneEvent
 from borgdrone.repositories import Repository
+from borgdrone.repositories import RepositoryManager as repository_manager
 from borgdrone.types import OptInt, OptStr
 
-from . import BundleDirectoryManager as bundle_directory_manager
+from . import BackupDirectoryManager as backup_directory_manager
 from .models import BackupBundle, ListBackupBundle, OptBackupBundle
 
 
@@ -69,8 +70,26 @@ def get_all(repo_id: OptStr = None) -> BorgdroneEvent[Optional[ListBackupBundle]
     return _log  # No need to log this, so not using return_success()
 
 
+def get_latest() -> BorgdroneEvent[OptBackupBundle]:
+    _log = BorgdroneEvent[OptBackupBundle]()
+    _log.event = "BundleManager.get_latest"
+
+    stmt = select(BackupBundle).order_by(BackupBundle.id.desc())
+    instance = db.session.scalars(stmt).first()
+
+    _log.set_data(instance)
+    if not instance:
+        _log.status = "FAILURE"
+        _log.error_message = "Bundle not found."
+    else:
+        _log.status = "SUCCESS"
+        _log.message = "Latest Bundle retrieved."
+
+    return _log
+
+
 def _set_bundle_values(bundle: BackupBundle, **kwargs) -> BackupBundle:
-    bundle.repo_id = kwargs["repo_id"]
+    bundle.repo_id = kwargs["repo_db_id"]
     bundle.cron_minute = kwargs["cron_minute"]
     bundle.cron_hour = kwargs["cron_hour"]
     bundle.cron_day = kwargs["cron_day"]
@@ -80,53 +99,43 @@ def _set_bundle_values(bundle: BackupBundle, **kwargs) -> BackupBundle:
     return bundle
 
 
-def __process_form_data(bundle: BackupBundle, form_data: Dict[str, Any]) -> Optional[Dict[str, list]]:
-    """Process form data for included and excluded directories.
-
-    creates BackupDirectory instances for each included and excluded directory.
-
-    Arguments:
-        bundle -- BackupBundle instance
-        form_data -- reqires "includedir..." and "excludedir..." keys
-
-    Returns:
-        Optional[Dict[str, list]]: "included_dirs", "exclude_dirs" keys with list of paths
-    """
-    data = {}
-    data["included_dirs"] = []
-    data["exclude_dirs"] = []
+def __process_directories(bundle, form_data: Dict[str, Any]) -> Optional[Dict[str, List[Any]]]:
+    data = {
+        "include_dirs": [],
+        "include_dirs_paths": [],
+        "exclude_dirs": [],
+        "exclude_dirs_paths": [],
+    }
 
     status = ""
     for key, value in form_data.items():
-        if key.startswith("includedir"):
+        if key.startswith("includedir") or key.startswith("excludedir"):
             yaml_data: Dict[str, Any] = yaml.safe_load(value)
-            data["included_dirs"].append(yaml_data.get("path"))
 
-            result_log = bundle_directory_manager.create_bundledirectory(**yaml_data)
+            # Set the exclude field based on the key type
+            if key.startswith("includedir"):
+                yaml_data["exclude"] = False
+            else:
+                yaml_data["exclude"] = True
+
+            result_log = backup_directory_manager.get_or_create_bundledirectory(bundle, **yaml_data)
+
             if result_log.status == "FAILURE":
                 status = "FAILURE"
                 break
 
-            if backup_dir := result_log.get_data():
-                # this won't fail because of the previous status check
-                bundle.backupdirectories.append(backup_dir)
-
-        elif key.startswith("excludedir"):
-            yaml_data: Dict[str, Any] = yaml.safe_load(value)
-            yaml_data["bundle_id"] = bundle.id
-            yaml_data["exclude"] = True
-
-            data["exclude_dirs"].append("--exclude")
-            data["exclude_dirs"].append(yaml_data.get("path"))
-
-            result_log = bundle_directory_manager.create_bundledirectory(**yaml_data)
-            if result_log.status == "FAILURE":
+            backup_dir = result_log.get_data()
+            if not backup_dir:
                 status = "FAILURE"
                 break
 
-            if backup_dir := result_log.get_data():
-                # this won't fail because of the previous status check
-                bundle.backupdirectories.append(backup_dir)
+            if key.startswith("includedir"):
+                data["include_dirs"].append(backup_dir)
+                data["include_dirs_paths"].append(backup_dir.path)
+            else:
+                data["exclude_dirs"].append(backup_dir)
+                data["exclude_dirs_paths"].append("--exclude")
+                data["exclude_dirs_paths"].append(backup_dir.path)
 
     if status == "FAILURE":
         return None
@@ -134,70 +143,93 @@ def __process_form_data(bundle: BackupBundle, form_data: Dict[str, Any]) -> Opti
     return data
 
 
-def update_bundle(bundle_id: int, **kwargs) -> BorgdroneEvent[BackupBundle]:
-    _log = BorgdroneEvent[BackupBundle]()
+def update_bundle(bundle_id: int, **kwargs) -> BorgdroneEvent[OptBackupBundle]:
+    _log = BorgdroneEvent[OptBackupBundle]()
     _log.event = "BundleManager.update_bundle"
 
     result_log = get_one(bundle_id=bundle_id)
     if not (bundle := result_log.get_data()):
         return _log.not_found_message("Bundle")
 
-    _set_bundle_values(bundle, **kwargs)
-    bundle.commit()
+    bundle = _set_bundle_values(bundle, **kwargs)
 
-    _log.set_data(bundle)
-
-    data = __process_form_data(bundle, kwargs)
+    data = __process_directories(bundle, kwargs)
     if not data:
-        bundle.delete()
+        _log.set_data(None)
         return _log.return_failure("Error processing form data.")
 
-    if not data["included_dirs"]:
-        bundle.delete()
+    if not data["include_dirs"]:
+        _log.set_data(None)
         return _log.return_failure("You must include at least one include directory.")
 
-    # "--list",
-    backup_command = BORG_CREATE_COMMAND.copy()
-    backup_command.extend(data["exclude_dirs"])
-    backup_command.append(f"{bundle.repo.path}::{bundle.repo.name_format}")
-    backup_command.extend(data["included_dirs"])
+    # remove deleted directories
+    for directory in bundle.backupdirectories:
+        if directory not in data["include_dirs"] or directory not in data["exclude_dirs"]:
+            directory.delete()
 
-    bundle.command_line = " ".join(backup_command)
-    bundle.commit()
+    kwargs.pop("repo_db_id")
+    kwargs.pop("excludedir")
+    kwargs.pop("includedir")
+
+    backup_command = BORG_CREATE_COMMAND.copy()
+    backup_command.extend(data["exclude_dirs_paths"])
+    backup_command.append(f"{bundle.repo.path}::{bundle.repo.name_format}")
+    backup_command.extend(data["include_dirs_paths"])
+
+    kwargs["command_line"] = " ".join(backup_command)
+
+    bundle.update_kwargs(**kwargs)
+    _log.set_data(bundle)
 
     return _log.return_success("Bundle updated successfully.")
 
 
-def create_bundle(**kwargs) -> BorgdroneEvent[BackupBundle]:
-    """Create or Update a bundle.
-
-    Returns:
-        _description_
-    """
-    _log = BorgdroneEvent[BackupBundle]()
+def create_bundle(**kwargs) -> BorgdroneEvent[OptBackupBundle]:
+    _log = BorgdroneEvent[OptBackupBundle]()
     _log.event = "BundleManager.create_bundle"
 
     bundle = _set_bundle_values(BackupBundle(), **kwargs)
+    repo = repository_manager.get_one(db_id=bundle.repo_id)
+    if not (repo := repo.get_data()):
+        return _log.not_found_message("Repository")
+
+    repo.backupbundles.append(bundle)
+
     bundle.commit()
     _log.set_data(bundle)
 
-    data = __process_form_data(bundle, kwargs)
+    data = __process_directories(bundle, kwargs)
     if not data:
+        _log.set_data(None)
         bundle.delete()
         return _log.return_failure("Error processing form data.")
 
-    if not data["included_dirs"]:
+    if not data["include_dirs"]:
+        _log.set_data(None)
         bundle.delete()
         return _log.return_failure("You must include at least one include directory.")
 
+    # Only add unique directories to the backupdirectories list
+    for directory in data["include_dirs"]:
+        if directory not in bundle.backupdirectories:
+            bundle.backupdirectories.append(directory)
+        else:
+            directory.delete()
+
+    for directory in data["exclude_dirs"]:
+        if directory not in bundle.backupdirectories:
+            bundle.backupdirectories.append(directory)
+        else:
+            directory.delete()
+
     # "--list",
     backup_command = BORG_CREATE_COMMAND.copy()
-    backup_command.extend(data["exclude_dirs"])
+    backup_command.extend(data["exclude_dirs_paths"])
     backup_command.append(f"{bundle.repo.path}::{bundle.repo.name_format}")
-    backup_command.extend(data["included_dirs"])
+    backup_command.extend(data["include_dirs_paths"])
 
     bundle.command_line = " ".join(backup_command)
-    bundle.commit()
+    bundle.update()
 
     return _log.return_success("Bundle created successfully.")
 
@@ -224,7 +256,7 @@ def check_dir(path: str) -> BorgdroneEvent[List[str]]:
         return _log.return_failure("Directory does not exist.")
 
     result = bash.run(f"ls -ld {path}")
-    if result.get("stderr"):
+    if result.get("stderr"):  # this should never happen
         resultstr = result["stderr"].replace("ls: ", "")
         return _log.return_failure(resultstr)
 

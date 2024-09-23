@@ -56,6 +56,7 @@ def check_dir(path_type):
             permissions: {data[0]}
             owner: {data[1]}
             group: {data[2]}
+            exclude: {path_type}
         </textarea>
         <td>
             {input_path}
@@ -87,42 +88,42 @@ def check_dir(path_type):
 @bundles_blueprint.route("/form/<purpose>/<bundle_id>", methods=["GET", "POST"])
 @login_required
 def bundle_form(purpose, bundle_id) -> Any:
-    # form inputs must be named the same as the BackupBundle model
+    # Helper object for handling response rendering
     rh = ResponseHelper(
         get_template="bundles/bundle_form.html",
         post_success_template="bundles/index.html",
         post_error_template="bundles/bundle_form.html",
     )
 
+    # Fetch repositories to populate the form
     result_log = repository_manager.get_all()
     rh.context_data = {"repos": result_log.get_data(), "form_purpose": purpose}
 
     if request.method == "POST":
         data = request.form
+
         if purpose == "create":
+            # Create a new bundle
             result_log = bundle_manager.create_bundle(**data)
-            rh.borgdrone_return = result_log.borgdrone_return()
-
-            if result_log.status == "FAILURE":
-                rh.toast_error = result_log.error_message
-                rh.context_data["bundle"] = result_log.data
-                return rh.respond(error=True)
-
         else:  # update
+            # Update the existing bundle
             result_log = bundle_manager.update_bundle(bundle_id, **data)
-            rh.borgdrone_return = result_log.borgdrone_return()
 
-            if result_log.status == "FAILURE":
-                rh.toast_error = result_log.error_message
-                rh.context_data["bundle"] = result_log.data
-                return rh.respond(error=True)
+        rh.borgdrone_return = result_log.borgdrone_return()
 
+        # Handle failure
+        if result_log.status == "FAILURE":
+            rh.toast_error = result_log.error_message
+            rh.context_data["bundle"] = result_log.data
+            return rh.respond(error=True)
+
+        # Success, redirect to index with success message
         rh.toast_success = result_log.message
-        return rh.respond(redirect_url="bundles.index")
+        return rh.respond()
 
-    # GET
+    # GET method handling
     if purpose == "create":
-        # Non-commited instance
+        # Initialize a new non-committed bundle instance
         bundle = BackupBundle()
         bundle.cron_day = "*"
         bundle.cron_hour = "*"
@@ -132,7 +133,8 @@ def bundle_form(purpose, bundle_id) -> Any:
 
         rh.context_data["bundle"] = bundle
 
-    elif purpose == "update":  # TODO
+    elif purpose == "update":
+        # Fetch the existing bundle for update
         result_log = bundle_manager.get_one(bundle_id=bundle_id)
         rh.borgdrone_return = result_log.borgdrone_return()
 
@@ -168,6 +170,8 @@ def run_backup(bundle_id: int):
         get_template="bundles/runner.html",
     )
     result_log = bundle_manager.get_one(bundle_id=bundle_id)
+    rh.borgdrone_return = result_log.borgdrone_return()
+
     if not (bundle := result_log.get_data()):
         return rh.respond(empty=True)
 
