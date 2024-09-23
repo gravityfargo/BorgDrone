@@ -16,7 +16,7 @@ class BorgdroneEvent(Generic[T]):
     """
 
     def __init__(self):
-        self.status: str = "FAILURE"
+        self.status: str = "NOSTATUS"
         # SUCCESS, FAILURE
 
         self.message: Optional[str]
