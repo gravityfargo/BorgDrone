@@ -1,4 +1,4 @@
-# from typing import Optional
+from typing import Any
 
 from flask import (
     Response,
@@ -32,7 +32,7 @@ class ResponseHelper:
     hx_request: bool = False
     request_method: str = ""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any):
         self.get_template: str = kwargs.get("get_template", "")
         self.post_success_template: str = kwargs.get("post_success_template", "")
         self.post_error_template: str = kwargs.get("post_error_template", "")
