@@ -12,8 +12,9 @@ ListArchive = List["Archive"]
 
 class Archive(db.Model):
     __tablename__ = "archive"
-    id: Mapped[str] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
 
+    archive_id: Mapped[str]
     backupbundle_id: Mapped[int] = mapped_column(ForeignKey("backupbundle.id"))
     backupbundle = relationship("BackupBundle", back_populates="archives")
 
