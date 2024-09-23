@@ -21,7 +21,7 @@ def new_instance_subdir() -> str:
 @pytest.fixture(scope="session", name="app")
 def ctx_app():
     os.environ["INSTANCE_PATH"] = INSTANCE_PATH
-    app = create_app(enable_logging=False)
+    app = create_app()
 
     yield app
 
