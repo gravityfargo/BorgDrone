@@ -24,7 +24,7 @@ class Repository(db.Model):
     name_format: Mapped[str] = mapped_column(default="{hostname}-{user}-{now}")
 
     # RepositoryKey
-    repo_id: Mapped[str] = mapped_column(primary_key=True)
+    repo_id: Mapped[str] = mapped_column()
     path: Mapped[str] = mapped_column(unique=True)  # location
     last_modified: Mapped[Optional[str]]
 

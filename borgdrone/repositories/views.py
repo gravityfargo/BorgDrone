@@ -92,12 +92,12 @@ def import_repo() -> Any:
     return rh.respond()
 
 
-@repositories_blueprint.route("/delete/<repo_id>", methods=["DELETE"])
+@repositories_blueprint.route("/delete/<db_id>", methods=["DELETE"])
 @login_required
-def delete_repo(repo_id) -> Any:
+def delete_repo(db_id) -> Any:
     rh = ResponseHelper()
 
-    result_log = repository_manager.delete_repo(repo_id)
+    result_log = repository_manager.delete_repo(db_id)
     rh.borgdrone_return = result_log.borgdrone_return()
 
     if result_log.status == "FAILURE":
@@ -108,12 +108,12 @@ def delete_repo(repo_id) -> Any:
     return rh.respond()
 
 
-@repositories_blueprint.route("/update/<repo_id>", methods=["POST"])
+@repositories_blueprint.route("/update/<db_id>", methods=["POST"])
 @login_required
-def update_stats(repo_id):
+def update_stats(db_id):
     rh = ResponseHelper()
 
-    result_log = repository_manager.update_repository_info(repo_id=repo_id)
+    result_log = repository_manager.update_repository_info(db_id=db_id)
     rh.borgdrone_return = result_log.borgdrone_return()
 
     if result_log.status == "FAILURE":

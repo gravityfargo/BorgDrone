@@ -1,6 +1,6 @@
 import pytest
 
-from borgdrone.borg import borg_runner
+from borgdrone.borg import BorgRunner as borg_runner
 from borgdrone.repositories import RepositoryManager as repository_manager
 
 from ..conftest import new_instance_subdir
@@ -22,9 +22,17 @@ def test_repo(client):
     yield result_log.get_data()
 
 
-def test_index(client):
+def test_index_fail(client):
     response = client.get("/repositories/")
     assert response.status_code == 200
+    # FAIL no repositories exist
+    assert response.headers["BORGDRONE_RETURN"] == "RepositoryManager.get_all.FAILURE"
+
+
+def test_index_success(client, repository):
+    response = client.get("/repositories/")
+    assert response.status_code == 200
+    # SUCCESS a repository exists
     assert response.headers["BORGDRONE_RETURN"] == "RepositoryManager.get_all.SUCCESS"
 
 

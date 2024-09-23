@@ -1,7 +1,7 @@
 from flask_login import current_user
 from sqlalchemy import select
 
-from borgdrone.borg import borg_runner
+from borgdrone.borg import BorgRunner as borg_runner
 from borgdrone.extensions import db
 from borgdrone.helpers.datahelpers import ISO8601_to_human
 from borgdrone.logging import BorgdroneEvent
@@ -152,12 +152,20 @@ def get_repository_info(path: str) -> BorgdroneEvent[Repository]:
     return _log.return_success("Repository info retrieved.")
 
 
-def delete_repo(repo_id: str) -> BorgdroneEvent[None]:
+def delete_repo(db_id: int) -> BorgdroneEvent[None]:
+    """Delete a repository from the database and filesystem.
+
+    Arguments:
+        db_id -- database id of the repository.
+
+    Returns:
+       BorgdroneEvent with no data.
+    """
     _log = BorgdroneEvent[None]()
     _log.event = "RepositoryManager.delete_repo"
 
     # get the repository
-    result_log = get_one(repo_id=repo_id)
+    result_log = get_one(db_id=db_id)
     if not (instance := result_log.data):
         return _log.not_found_message("Repository")
 
@@ -172,11 +180,11 @@ def delete_repo(repo_id: str) -> BorgdroneEvent[None]:
     return _log.return_success("Repository deleted from filesystem.")
 
 
-def update_repository_info(repo_id: OptStr = None, path: OptStr = None) -> BorgdroneEvent[None]:
+def update_repository_info(db_id: OptInt = None, path: OptStr = None) -> BorgdroneEvent[None]:
     _log = BorgdroneEvent[None]()
     _log.event = "RepositoryManager.update_repository_info"
 
-    result_log = get_one(repo_id=repo_id, path=path)
+    result_log = get_one(db_id=db_id, path=path)
     if not result_log.data:
         return _log.not_found_message("Repository")
 
@@ -220,11 +228,8 @@ def import_repo(path: str) -> BorgdroneEvent[Repository]:
 
     result_log = get_repository_info(path=path)
     if result_log.status == "FAILURE":
-        # we want to pass the error code and message
-        # to the user and for BORG_RETURN
         _log.error_code = result_log.error_code
         _log.error_message = result_log.error_message
-
         return _log.return_failure(result_log.error_message)
 
     if not (instance := result_log.get_data()):
