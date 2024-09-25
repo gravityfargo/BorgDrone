@@ -28,11 +28,8 @@ flask = "^3.0.3"
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^3.2.7"
-flake8 = "^7.0.0"
-pyproject-flake8 = "^7.0.0"
 pytest = "^8.3.3"
 pytest-cov = "^5.0.0"
-djlint = "^1.35.2"
 isort = "^5.13.2"
 black = "^24.8.0"
 
@@ -79,37 +76,15 @@ disable = [
 
 ]
 
+[tool.pylint.'tests/']
+disable = [
+    "W0611", # unused-import
+    "W0621", # redefined-outer-name
+]
+
 [tool.isort]
 profile = "black"
 multi_line_output = 3
-
-[tool.flake8]
-exclude = [".git", "__pycache__", ".venv"]
-max-line-length = 120
-ignore = [
-    "E402", # module level import not at top of file
-    "E501",
-    "F401", # imported but unused
-    "F841", # local variable is assigned to but never used
-    "E266", # too many leading '#' for block comment
-]
-max-complexity = 10
-
-
-[tool.djlint]
-profile = "jinja"
-use_gitignore = true
-format_css = true
-format_js = true
-max_blank_lines = 3
-max_line_length = 120
-ignore = "H021"       # Inline styles should be avoided. (H021)
-
-[tool.djlint.css]
-indent_size = 5
-
-[tool.djlint.js]
-indent_size = 5
 
 [tool.pyright]
 reportAttributeAccessIssue = false

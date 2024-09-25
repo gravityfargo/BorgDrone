@@ -35,7 +35,7 @@ def get_one(bundle_id: OptInt = None, repo_id: OptInt = None, command_line: OptS
     return instance
 
 
-def get_all(repo_id: OptStr = None) -> Optional[ListBackupBundle]:
+def get_all(repo_id: Optional[int] = None) -> Optional[ListBackupBundle]:
     if repo_id:
         stmt = select(BackupBundle).where(BackupBundle.repo_id == repo_id)
     else:

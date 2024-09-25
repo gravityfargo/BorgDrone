@@ -26,7 +26,8 @@
             {% include 'sidebar.html' %}
             <div class="d-flex flex-fill flex-column">
                 <div id="content" class="d-flex flex-column flex-grow-1 p-0 m-0">
-                    {% block content %}{% endblock content %}
+                    {% block content %}
+                    {% endblock content %}
                 </div>
 
                 {% include 'messages.html' %}

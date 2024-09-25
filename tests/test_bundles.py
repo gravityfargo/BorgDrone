@@ -1,23 +1,28 @@
 # pylint: disable=W0611
+from flask.testing import FlaskClient
+
 from borgdrone.archives import Archive
 from borgdrone.bundles import BackupBundle, BackupDirectory
 from borgdrone.bundles import BundleManager as bundle_manager
 from borgdrone.helpers import database
 from borgdrone.logging import logger
+from borgdrone.repositories import Repository
 
-from ..conftest import TEST_PATHS_1, bundle_dir_data, ctx_repo
+from .conftest import bundle_form_data
 
 
-def test_get(client, logged_in, bundle):
+def test_get(client: FlaskClient):
     response = client.get("/bundles/")
     assert response.status_code == 200
 
     response = client.get("/bundles/form/create")
     assert response.status_code == 200
 
-    bundle_instance, _ = bundle
+    bundle = database.get_by_id(1, BackupBundle)
+    assert bundle
+
     # SUCCESS bundle_form update
-    response = client.get(f"/bundles/form/update/{bundle_instance.id}")
+    response = client.get(f"/bundles/form/update/{bundle.id}")
     assert response.status_code == 200
 
     # FAIL bundle_form update | does not exist
@@ -25,46 +30,47 @@ def test_get(client, logged_in, bundle):
     assert response.status_code == 200
 
     # SUCCESS run_backup
-    response = client.get(f"/bundles/{bundle_instance.id}/run")
+    response = client.get(f"/bundles/{bundle.id}/run")
     assert response.status_code == 200
 
     # FAIL run_backup | does not exist
     response = client.get("/bundles/0/run")
     assert response.status_code == 200
 
-    bundle_manager.get_one(bundle_id=bundle_instance.id)
-    bundle_manager.get_one(repo_id=bundle_instance.repo_id)
-    bundle_manager.get_one(command_line=bundle_instance.command_line)
-    bundle_manager.get_all(bundle_instance.repo_id)
+    bundle_manager.get_one(bundle_id=bundle.id)
+    bundle_manager.get_one(repo_id=bundle.repo_id)
+    bundle_manager.get_one(command_line=bundle.command_line)
+    bundle_manager.get_all(bundle.repo_id)
+
+    result_log = bundle_manager.check_dir("/bad/path")
+    assert result_log.status == "FAILURE"
 
 
-def test_create_bundle(client, repository):
-    exclude_paths = [TEST_PATHS_1[0], TEST_PATHS_1[1]]
-    include_paths = [TEST_PATHS_1[2], TEST_PATHS_1[3]]
-
-    form_data = bundle_dir_data(client, exclude_paths, include_paths)
+def test_create_bundle(client: FlaskClient):
+    form_data = bundle_form_data(2)
+    repository = database.get_latest(Repository)
+    assert repository
 
     # SUCCESS
-    form_data["repo_db_id"] = repository.id
+    form_data["repo_db_id"] = str(repository.id)
     response = client.post("/bundles/form/create", data=form_data)
     assert response.headers["BORGDRONE_RETURN"] == "BundleManager.process_bundle_form.SUCCESS"
-    assert database.count(BackupBundle) == 1
-    assert database.count(BackupDirectory) == 4
-
-    bundle_instance = database.get_latest(BackupBundle)
-    assert bundle_instance
-    assert len(bundle_instance.backupdirectories) == 4
+    assert database.count(BackupBundle) == 2
+    assert database.count(BackupDirectory) == 8
 
     # Duplicate bundles can exist.
     response = client.post("/bundles/form/create", data=form_data)
-    assert database.count(BackupBundle) == 2
-    assert database.count(BackupDirectory) == 4  # Duplicate directories cannot exist.
+    assert database.count(BackupBundle) == 3
+    assert database.count(BackupDirectory) == 8  # Duplicate directories cannot exist.
+
+    bundle = database.get_latest(BackupBundle)
+    assert bundle
 
     # deleting one should not delete shared backupdirectories
-    response = client.delete(f"/bundles/delete/{bundle_instance.id}")
+    response = client.delete(f"/bundles/delete/{bundle.id}")
     assert response.headers["BORGDRONE_RETURN"] == "BundleManager.delete_bundle.SUCCESS"
-    assert database.count(BackupBundle) == 1
-    assert database.count(BackupDirectory) == 4
+    assert database.count(BackupBundle) == 2
+    assert database.count(BackupDirectory) == 8
 
     # FAIL no includedirs
     fail_form_data = form_data.copy()
@@ -75,42 +81,47 @@ def test_create_bundle(client, repository):
     response = client.post("/bundles/form/create", data=fail_form_data)
     assert response.headers["BORGDRONE_RETURN"] == "BundleManager.process_bundle_form.FAILURE"
 
-    bundle_instance = database.get_latest(BackupBundle)
-    assert bundle_instance
-    response = client.delete(f"/bundles/delete/{bundle_instance.id}")
+    bundle = database.get_latest(BackupBundle)
+    assert bundle
+
+    response = client.delete(f"/bundles/delete/{bundle.id}")
     assert response.headers["BORGDRONE_RETURN"] == "BundleManager.delete_bundle.SUCCESS"
-    assert database.count(BackupBundle) == 0
-    assert database.count(BackupDirectory) == 0
+    assert database.count(BackupBundle) == 1
+    assert database.count(BackupDirectory) == 4
 
     result = bundle_manager.process_bundle_form(purpose="invalid")
     assert result.status == "FAILURE"
 
 
-def test_bundle_update(client, bundle):
-    bundle_instance, form_data = bundle
+def test_bundle_update(client: FlaskClient):
+    form_data = bundle_form_data(2)
+
+    # invalid bundle
+    response = client.post("/bundles/form/update/0", data=form_data)
+    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.process_bundle_form.FAILURE"
+
+    bundle = database.get_latest(BackupBundle)
+    assert bundle
 
     form_data["comment"] = "updated comment"
-    form_data["bundle_id"] = bundle_instance.id
+    form_data["bundle_id"] = str(bundle.id)
 
-    response = client.post(f"/bundles/form/update/{bundle_instance.id}", data=form_data)
+    response = client.post(f"/bundles/form/update/{bundle.id}", data=form_data)
     assert response.headers["BORGDRONE_RETURN"] == "BundleManager.process_bundle_form.SUCCESS"
-    assert response.status_code == 200
 
 
-def test_bundle_delete(client, bundle):
-    bundle_instance, _ = bundle
-    # SUCCESS delete_bundle
-    response = client.delete(f"/bundles/delete/{bundle_instance.id}")
-    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.delete_bundle.SUCCESS"
-
+def test_bundle_delete(client: FlaskClient):
     # FAIL delete_bundle | does not exist
     response = client.delete("/bundles/delete/0")
     assert response.headers["BORGDRONE_RETURN"] == "BundleManager.delete_bundle.FAILURE"
 
 
-def test_create_backup(client, bundle):
-    bundle_instance, _ = bundle
+def test_create_backup(client: FlaskClient):
+    bundle = database.get_latest(BackupBundle)
+    assert bundle
+
     archive_count = database.count(Archive)
-    result_log = bundle_manager.create_backup(bundle_instance.id)
+    result_log = bundle_manager.create_backup(bundle.id)
+
     assert result_log.status == "SUCCESS"
     assert database.count(Archive) == archive_count + 1

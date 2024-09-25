@@ -1,36 +1,36 @@
 from logging import getLogger
-from typing import Optional
+from typing import Any, Optional
 
 from flask import current_app as app
 
 from .config import COLOR
 
 
-def success(message: str) -> None:
+def success(message: Any) -> None:
     """proxies app.logger.info"""
     # An additional stacklevel is needed so log.error will show the caller of this module
     app.logger.info(message, stacklevel=2)
 
 
-def error(message: str) -> None:
+def error(message: Any) -> None:
     """proxies app.logger.error"""
     # An additional stacklevel is needed so log.error will show the caller of this module
     app.logger.error(message, stacklevel=2)
 
 
-def success_event(message: str) -> None:
+def success_event(message: Any) -> None:
     """
     The BorgdroneEvent helper methods requre an additional stacklevel
     """
     app.logger.info(message, stacklevel=3)
 
 
-def error_event(message: str) -> None:
+def error_event(message: Any) -> None:
     """The BorgdroneEvent helper methods requre an additional stacklevel"""
     app.logger.error(message, stacklevel=3)
 
 
-def debug(message: str, color: Optional[str] = None) -> None:
+def debug(message: Any, color: Optional[str] = None) -> None:
     """proxies app.logger.debug
 
     If the environment variable PYTESTING is set to True, the message will not be logged.
@@ -45,25 +45,25 @@ def debug(message: str, color: Optional[str] = None) -> None:
     app.logger.debug(message, stacklevel=2)
 
 
-def warning(message: str) -> None:
+def warning(message: Any) -> None:
     """proxies app.logger.warning"""
     # An additional stacklevel is needed so log.error will show the caller of this module
     app.logger.warning(message, stacklevel=2)
 
 
-def critical(message: str) -> None:
+def critical(message: Any) -> None:
     """proxies app.logger.critical"""
     # An additional stacklevel is needed so log.error will show the caller of this module
     app.logger.critical(message, stacklevel=2)
 
 
-def exception(message: str) -> None:
+def exception(message: Any) -> None:
     """proxies app.logger.exception"""
     # An additional stacklevel is needed so log.error will show the caller of this module
     app.logger.exception(message, stacklevel=2)
 
 
-def borg_log(message: str) -> None:
+def borg_log(message: Any) -> None:
     """Logger for borg messages
 
     Logs messages to `instance/logs/borg.log` via the borg logger
@@ -77,7 +77,7 @@ def borg_log(message: str) -> None:
     borgcreate_logger.info(message, stacklevel=2)
 
 
-def borg_temp_log(message: str) -> None:
+def borg_temp_log(message: Any) -> None:
     """proxies app.logger.error"""
     # An additional stacklevel is needed so log.error will show the caller of this module
     if app.config.get("PYTESTING", False):

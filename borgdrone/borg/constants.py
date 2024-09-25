@@ -1,10 +1,10 @@
 # Base commands
-
-BORG_INIT_COMMAND = [
-    "borg --log-json init",
-    "--encryption=KEY",
-    "PATH",
+BORG_CHECK_COMMAND = [
+    "borg --log-json check",
 ]
+
+BORG_INIT_COMMAND = "borg --log-json init --encryption=KEY PATH"
+
 
 BORG_INFO_COMMAND = [
     "borg --log-json info --json",

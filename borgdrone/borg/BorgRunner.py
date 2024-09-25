@@ -6,6 +6,7 @@ from borgdrone.logging import BorgdroneEvent, logger
 from borgdrone.types import OptStr
 
 from .constants import (
+    BORG_CHECK_COMMAND,
     BORG_DELETE_COMMAND,
     BORG_INFO_COMMAND,
     BORG_INIT_COMMAND,
@@ -39,13 +40,13 @@ def __process_error(result_log: BorgdroneEvent, error: str) -> BorgdroneEvent:
 
 def create_repository(path: str, encryption: str) -> BorgdroneEvent[None]:
     result_log = BorgdroneEvent[None]()
-    result_log.event = "BorgRunner._create_repository"
+    result_log.event = "BorgRunner.create_repository"
 
-    command = BORG_INIT_COMMAND.copy()
-    command[1] = f"--encryption={encryption}"
-    command[2] = path
+    command = BORG_INIT_COMMAND
+    command = command.replace("KEY", encryption)
+    command = command.replace("PATH", path)
 
-    result_log.message = " ".join(command)
+    result_log.message = command
 
     result = bash.run(command)
     if "stderr" in result:
@@ -93,6 +94,7 @@ def borg_info(path: str, archive_name: OptStr = None, first: int = 0, last: int 
 def delete_repository(path: str) -> BorgdroneEvent[None]:
     _log = BorgdroneEvent[None]()
     _log.event = "BorgRunner.delete_repository"
+    _log.status = "SUCCESS"
 
     command = BORG_DELETE_COMMAND.copy()
     command[1] = path
@@ -105,15 +107,13 @@ def delete_repository(path: str) -> BorgdroneEvent[None]:
         # - Repository.DoesNotExist
         __process_error(_log, result["stderr"])
 
-    else:
-        _log.status = "SUCCESS"
-
     return _log
 
 
 def list_archives(repo_path: str, first: int = 0, last: int = 0) -> BorgdroneEvent[List[Dict[str, Any]]]:
     _log = BorgdroneEvent[List[Dict[str, Any]]]()
     _log.event = "BorgRunner.get_archives"
+    _log.status = "SUCCESS"
 
     command = BORG_LIST_COMMAND.copy()
     command[1] = repo_path
@@ -136,6 +136,15 @@ def list_archives(repo_path: str, first: int = 0, last: int = 0) -> BorgdroneEve
 
 
 def __parse_archive_info(archive_data: dict) -> Optional[Dict[str, Any]]:
+    """Parse the archive data.
+
+    Arguments:
+        archive_data -- BORG_INFO_COMMAND output
+
+    Returns:
+        None -- If the archive data is empty.
+        Dict[str, Any] -- Archive data in Archive() model as a dict.
+    """
     if not archive_data["archives"]:
         return None
 
@@ -196,6 +205,7 @@ def get_last_archive(repo_path: str) -> BorgdroneEvent[Optional[dict]]:
     """
     _log = BorgdroneEvent[Optional[Dict[str, Any]]]()
     _log.event = "BorgRunner.get_last_archive"
+    _log.status = "SUCCESS"
 
     result_log = borg_info(repo_path, last=1)
     if not (archive_data := result_log.get_data()):
@@ -210,4 +220,21 @@ def get_last_archive(repo_path: str) -> BorgdroneEvent[Optional[dict]]:
         return _log
 
     _log.set_data(data)
+    return _log
+
+
+def borg_check(repo_path: str, repository_only: bool = True) -> BorgdroneEvent[None]:
+    _log = BorgdroneEvent[None]()
+    _log.event = "BorgRunner.borg_check"
+    _log.status = "SUCCESS"
+
+    command = BORG_CHECK_COMMAND.copy()
+    if repository_only:
+        command.append("--repository-only")
+
+    command.append(repo_path)
+    result = bash.run(command)
+    if "stderr" in result:
+        __process_error(_log, result["stderr"])
+
     return _log

@@ -63,7 +63,7 @@ def create_repo(path: str, encryption: str) -> BorgdroneEvent[Repository]:
     return _log.return_success("Repository created.")
 
 
-def get_repository_info(path: str) -> BorgdroneEvent[Repository]:
+def get_repository_info(path: str) -> BorgdroneEvent[Optional[Repository]]:
     """Get information about a repository.
 
     Arguments:
@@ -72,7 +72,7 @@ def get_repository_info(path: str) -> BorgdroneEvent[Repository]:
     Returns:
         BorgdroneEvent[Repository] -- A BorgdroneEvent with an uncommited Repository instance as data.
     """
-    _log = BorgdroneEvent[Repository]()
+    _log = BorgdroneEvent[Optional[Repository]]()
     _log.event = "RepositoryManager.get_repository_info"
 
     info_result_log = borg_runner.borg_info(path)
@@ -115,7 +115,7 @@ def delete_repo(db_id: int) -> BorgdroneEvent[None]:
         db_id -- database id of the repository.
 
     Returns:
-       BorgdroneEvent with no data.
+        BorgdroneEvent with no data.
     """
     _log = BorgdroneEvent[None]()
     _log.event = "RepositoryManager.delete_repo"

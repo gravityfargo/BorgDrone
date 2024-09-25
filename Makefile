@@ -30,12 +30,12 @@ test:
 
 test-repos:
 	clear
-	poetry run pytest tests/requests/test_repositories.py
+	poetry run pytest tests/test_repositories.py
 
 test-bundles:
 	clear
-	poetry run pytest tests/requests/test_bundles.py
+	poetry run pytest tests/test_bundles.py
 
 test-archives:
 	clear
-	poetry run pytest tests/requests/test_archives.py
+	poetry run pytest tests/test_archives.py

@@ -23,3 +23,9 @@ def get_latest(model: Type[T]) -> Optional[T]:
     stmt = select(model).order_by(model.id.desc())
     instance = db.session.scalars(stmt).first()
     return instance
+
+
+def get_by_id(id_int: int, model: Type[T]) -> Optional[T]:
+    stmt = select(model).where(model.id == id_int)
+    instance = db.session.scalars(stmt).first()
+    return instance

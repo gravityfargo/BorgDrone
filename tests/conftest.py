@@ -5,99 +5,82 @@ from typing import List
 
 import pytest
 from flask import Flask
+from flask.testing import FlaskClient
 from flask_login import LoginManager, current_user
 
 from borgdrone import create_app
 from borgdrone.archives import Archive
 from borgdrone.auth import Users
-from borgdrone.bundles import BackupBundle, BackupDirectory, BundleManager
+from borgdrone.borg import BorgRunner as borg_runner
+from borgdrone.bundles import BackupBundle, BackupDirectory
+from borgdrone.bundles import BundleManager as bundle_manager
 from borgdrone.helpers import database, filemanager
+from borgdrone.logging import logger
 from borgdrone.repositories import Repository
+from borgdrone.repositories import RepositoryManager as repository_manager
 
-INSTANCE_PATH = f"/tmp/borgdrone_pytest_{randint(0, 1000)}"
+INSTANCE_PATH = "/tmp/borgdrone_pytest"
 
-TEST_PATHS_1 = [
-    f"{INSTANCE_PATH}/exclude1",
-    f"{INSTANCE_PATH}/exclude2",
-    f"{INSTANCE_PATH}/include1",
-    f"{INSTANCE_PATH}/include2",
+REPO_1 = {
+    "path": "/tmp/borgdrone_pytest/TestRepo1",
+    "encryption": "none",
+}
+REPO_2 = {
+    "path": "/tmp/borgdrone_pytest/TestRepo2",
+    "encryption": "none",
+}
+
+TEST_DATA_PATH = "/tmp/borgdrone_pytest/data"
+
+INCLUDE_PATHS_1 = [
+    f"{TEST_DATA_PATH}/include1",
+    f"{TEST_DATA_PATH}/include2",
 ]
 
-TEST_PATHS_2 = [
-    f"{INSTANCE_PATH}/exclude3",
-    f"{INSTANCE_PATH}/exclude4",
-    f"{INSTANCE_PATH}/include3",
-    f"{INSTANCE_PATH}/include4",
+INCLUDE_PATHS_2 = [
+    f"{TEST_DATA_PATH}/include3",
+    f"{TEST_DATA_PATH}/include4",
 ]
 
+EXCLUDE_PATHS_1 = [
+    f"{TEST_DATA_PATH}/exclude1",
+    f"{TEST_DATA_PATH}/exclude2",
+]
 
-def bundle_dir_data(client, exclude_paths: List[str], include_paths: List[str]) -> dict:
-    form_data = {
-        "cron_minute": "2",
-        "cron_hour": "3",
-        "cron_day": "4",
-        "cron_month": "5",
-        "cron_weekday": "6",
-        "comment": "test comment",
-    }
+EXCLUDE_PATHS_2 = [
+    f"{TEST_DATA_PATH}/exclude3",
+    f"{TEST_DATA_PATH}/exclude4",
+]
 
-    def format_data(data) -> str:
-        # path
-        # permissions
-        # owner
-        # group
-        # exclude
-        path_data = f"""
-            {data[3].decode("utf-8").strip()}
-            {data[4].decode("utf-8").strip()}
-            {data[5].decode("utf-8").strip()}
-            {data[6].decode("utf-8").strip()}
-            {data[7].decode("utf-8").strip()}
-        """
-        return path_data
+"""
+Notes:
+scope="session" -> the fixture is destroyed at the end of the session.
 
-    i = 0
-    for path in exclude_paths:
-        response = client.post("/bundles/check-dir/exclude", data={"exclude_path": path})
-        data = response.data.splitlines()
-        path_data = format_data(data)
+Starting Environment:
+- a repository not in the database
 
-        form_data[f"excludedir{i}"] = path_data
-        i += 1
+Functional contexts:
+from flask import current_app as app
 
-    for path in include_paths:
-        filemanager.check_dir(path, create=True)
-        response = client.post("/bundles/check-dir/include", data={"include_path": path})
-        data = response.data.splitlines()
-        path_data = format_data(data)
-
-        form_data[f"includedir{i}"] = path_data
-        i += 1
-
-    return form_data
+"""
 
 
-def new_instance_subdir() -> str:
-    path = os.path.join(INSTANCE_PATH, str(randint(0, 1000)))
-    os.mkdir(path)
-    return path
-
-
-@pytest.fixture(scope="session", name="app")
-def ctx_app():
+@pytest.fixture(scope="session")
+def app():
     os.environ["INSTANCE_PATH"] = INSTANCE_PATH
     os.environ["PYTESTING"] = "True"
-    app = create_app()
-    for path in TEST_PATHS_1 + TEST_PATHS_2:
-        os.makedirs(path, exist_ok=True)
 
-    yield app
+    ctx_app = create_app()
+    for directory in [TEST_DATA_PATH] + INCLUDE_PATHS_1 + INCLUDE_PATHS_2 + EXCLUDE_PATHS_1 + EXCLUDE_PATHS_2:
+        filemanager.check_dir(directory, create=True)
+
+    yield ctx_app
 
     shutil.rmtree(INSTANCE_PATH)
 
 
-@pytest.fixture(scope="session", name="runner")
-def ctx_runner(app: Flask):
+@pytest.fixture
+def runner(app: Flask):
     """
     UNUSED
     creates a runner that can call Click commands
@@ -105,8 +88,8 @@ def ctx_runner(app: Flask):
     return app.test_cli_runner()
 
 
-@pytest.fixture(scope="session", name="client")
-def test_client(app: Flask):
+@pytest.fixture(scope="session")
+def client(app: Flask):
     """
     Tests will use the client to make requests
     to the application without running the server.
@@ -120,11 +103,12 @@ def test_client(app: Flask):
             def load_user(user_id):
                 return Users.query.get(int(user_id))
 
-            yield testing_client  # this is where the testing happens!
+            yield testing_client
 
 
-@pytest.fixture(scope="session", name="logged_in", autouse=True)
-def test_login(app, client):
+@pytest.fixture(scope="session", autouse=True)
+def ctx_login(app: Flask, client: FlaskClient):
+    """Should always be logged in for tests"""
     form_data = {
         "username": app.config["DEFAULT_USER"],
         "password": app.config["DEFAULT_PASSWORD"],
@@ -136,32 +120,74 @@ def test_login(app, client):
     assert current_user.id == 1
 
 
-@pytest.fixture(scope="session", name="repository")
-def ctx_repo(client):
-    repo = {
-        "path": new_instance_subdir(),
-        "encryption": "none",
-    }
-    # Session: the fixture is destroyed at the end of the session.
-    client.post("/repositories/create/", data=repo)
+@pytest.fixture(scope="session", autouse=True)
+def ctx_repository(client: FlaskClient, ctx_login):
+    """Create a repository for testing"""
+
+    response = client.post("/repositories/create/", data=REPO_1)
+    assert response.headers["BORGDRONE_RETURN"] == "RepositoryManager.create_repo.SUCCESS"
+
     repository = database.get_latest(Repository)
     assert repository
 
-    yield repository
-
-    response = client.delete(f"/repositories/delete/{repository.id}")
-    assert response.headers["BORGDRONE_RETURN"] == "RepositoryManager.delete_repo.SUCCESS"
+    yield
 
 
-@pytest.fixture(scope="function", name="bundle")
-def ctx_bundle(client, repository):
-    exclude_paths = [TEST_PATHS_1[0], TEST_PATHS_1[1]]
-    include_paths = [TEST_PATHS_1[2], TEST_PATHS_1[3]]
+def bundle_form_data(number: int):
+    if number == 1:
+        include_paths = INCLUDE_PATHS_1
+        exclude_paths = EXCLUDE_PATHS_1
+    else:
+        include_paths = INCLUDE_PATHS_2
+        exclude_paths = EXCLUDE_PATHS_2
 
-    form_data = bundle_dir_data(client, exclude_paths, include_paths)
+    form_data = {
+        "cron_minute": "2",
+        "cron_hour": "3",
+        "cron_day": "4",
+        "cron_month": "5",
+        "cron_weekday": "6",
+        "comment": "test comment",
+    }
+
+    for path in include_paths:
+        data = bundle_manager.check_dir(path)
+        dir_data = data.get_data()
+        assert dir_data
+        path_data = f"""
+            path: {path}
+            permissions: {dir_data[0]}
+            owner: {dir_data[1]}
+            group: {dir_data[2]}
+            exclude: False
+        """
+        form_data[f"includedir{randint(0, 1000)}"] = path_data
+
+    for path in exclude_paths:
+        data = bundle_manager.check_dir(path)
+        dir_data = data.get_data()
+        assert dir_data
+        path_data = f"""
+            path: {path}
+            permissions: {dir_data[0]}
+            owner: {dir_data[1]}
+            group: {dir_data[2]}
+            exclude: True
+        """
+        form_data[f"excludedir{randint(0, 1000)}"] = path_data
+
+    return form_data
+
+
+@pytest.fixture(scope="session", autouse=True)
+def ctx_bundle(client: FlaskClient, ctx_repository):
+    form_data = bundle_form_data(1)
+
+    repository = database.get_latest(Repository)
+    assert repository
 
     # SUCCESS
-    form_data["repo_db_id"] = repository.id
+    form_data["repo_db_id"] = f"{repository.id}"
     response = client.post("/bundles/form/create", data=form_data)
     assert response.headers["BORGDRONE_RETURN"] == "BundleManager.process_bundle_form.SUCCESS"
     assert database.count(BackupBundle) > 0
@@ -170,13 +196,12 @@ def ctx_bundle(client, repository):
     bundle = database.get_latest(BackupBundle)
     assert bundle
 
-    yield bundle, form_data
-
-    response = client.delete(f"/bundles/delete/{bundle.id}")
+    yield bundle
 
 
 @pytest.fixture(scope="function", name="archive")
-def ctx_archive(client, bundle):
+@pytest.mark.usefixtures("client")
+def ctx_archive(bundle):
     bundle_instance, _ = bundle
     archive_count = database.count(Archive)
     result_log = BundleManager.create_backup(bundle_instance.id)

@@ -62,7 +62,6 @@ class BackupBundle(db.Model):
         db.session.commit()
         for directory in self.backupdirectories:
             if not directory.backupbundles:
-                logger.error(directory.path)
                 directory.delete()
 
     def update(self):
