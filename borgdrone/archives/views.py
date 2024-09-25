@@ -14,8 +14,8 @@ archives_blueprint = Blueprint("archives", __name__, template_folder="templates"
 def index():
     rh = ResponseHelper(get_template="archives/index.html")
 
-    result_log = repository_manager.get_all()
-    rh.context_data = {"repositories": result_log.get_data()}
+    repositories = repository_manager.get_all()
+    rh.context_data = {"repositories": repositories}
 
     return rh.respond()
 
@@ -25,19 +25,13 @@ def index():
 def get_archives():
     rh = ResponseHelper(post_success_template="archives/archives.html")
 
-    repo_db_id = request.form["repo_db_id"]
+    repo_db_id = request.form.get("repo_db_id")
     if not repo_db_id:
         rh.toast_error = "No repository selected."
         return rh.respond(empty=True)
 
-    result_log = archive_manager.get_all(int(repo_db_id))
-    rh.borgdrone_return = result_log.borgdrone_return()
-
-    if result_log.status == "FAILURE":
-        rh.toast_error = result_log.error_message
-        return rh.respond(empty=True)
-
-    rh.context_data = {"archives": result_log.get_data()}
+    archives = archive_manager.get_all(int(repo_db_id))
+    rh.context_data = {"archives": archives}
     return rh.respond()
 
 

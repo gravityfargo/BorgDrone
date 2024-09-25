@@ -1,5 +1,4 @@
 import subprocess
-from typing import List
 
 from flask import copy_current_request_context
 from flask_socketio import emit
@@ -8,6 +7,7 @@ from borgdrone.extensions import socketio
 from borgdrone.logging import logger
 
 
+# flake8: noqa
 def popen(command: str | list, emit_socket: bool = False):
     if isinstance(command, str):
         cmd = command.split(" ")
@@ -38,9 +38,9 @@ def popen(command: str | list, emit_socket: bool = False):
 
                 error = process.stderr.readline()
                 if error:
-                    line = error.strip("\n")
+                    line = error.strip("\n")  # Remove the newline from both sides
                     if emit_socket:
-                        emit("send_line", {"text": line})
+                        emit("send_line", {"text": f"{line}\n"})
 
                     logger.borg_temp_log(line)
                     logger.debug(line)

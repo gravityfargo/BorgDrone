@@ -1,7 +1,7 @@
 # type: ignore
 # pylint: disable=E1102
 
-from typing import Optional, TypeVar
+from typing import Optional, Type, TypeVar
 
 from sqlalchemy import func, select
 
@@ -19,7 +19,7 @@ def count(model) -> int:
     return num
 
 
-def get_latest(model: T) -> Optional[T]:
+def get_latest(model: Type[T]) -> Optional[T]:
     stmt = select(model).order_by(model.id.desc())
     instance = db.session.scalars(stmt).first()
     return instance

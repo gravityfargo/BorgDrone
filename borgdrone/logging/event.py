@@ -64,10 +64,9 @@ class BorgdroneEvent(Generic[T]):
         if not self.event:
             self.event = "BorgdroneEvent.not_found_message"
 
-        self.error_message = "Failed to find repository."
-        self.message = f"Failed to find {object_name}."
+        self.error_message = f"Failed to find {object_name}."
 
-        log.error(self.error_message)
+        log.error_event(self.error_message)
         return self
 
     def return_success(self, success_message: str) -> "BorgdroneEvent":

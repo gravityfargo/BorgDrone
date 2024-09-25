@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from borgdrone.helpers import bash
 from borgdrone.logging import BorgdroneEvent, logger
@@ -135,30 +135,9 @@ def list_archives(repo_path: str, first: int = 0, last: int = 0) -> BorgdroneEve
     return _log
 
 
-def get_last_archive(repo_path: str) -> BorgdroneEvent[Dict[str, Any]]:
-    """Get the last archive from the repository.
-
-    Arguments:
-        repo_path -- Path to the repository.
-
-    Returns:
-        BorgdroneEvent[Dict[str, Any]]:
-            containing the archive info in the format of the Archive model.
-    """
-    _log = BorgdroneEvent[Dict[str, Any]]()
-    _log.event = "BorgRunner.get_last_archive"
-
-    result_log = borg_info(repo_path, last=1)
-
-    if not (archive_data := result_log.get_data()):
-        _log.status = "FAILURE"
-        _log.error_message = result_log.error_message
-        return _log
-
+def __parse_archive_info(archive_data: dict) -> Optional[Dict[str, Any]]:
     if not archive_data["archives"]:
-        _log.status = "FAILURE"
-        _log.error_message = "No archives found."
-        return _log
+        return None
 
     info = archive_data["archives"][0]
     repo = archive_data["repository"]
@@ -182,5 +161,53 @@ def get_last_archive(repo_path: str) -> BorgdroneEvent[Dict[str, Any]]:
     return_data["stats_original_size"] = stats["original_size"]
     return_data["repository_id"] = repo["id"]
 
-    _log.set_data(return_data)
+    return return_data
+
+
+def archive_info(repo_path: str, archive_name: str) -> BorgdroneEvent[Dict[str, Any]]:
+    _log = BorgdroneEvent[Dict[str, Any]]()
+    _log.event = "BorgRunner.archive_info"
+
+    result_log = borg_info(repo_path, archive_name=archive_name)
+    if not (archive_data := result_log.get_data()):
+        _log.status = "FAILURE"
+        _log.error_message = result_log.error_message
+        return _log
+
+    data = __parse_archive_info(archive_data)
+    if not data:
+        _log.status = "FAILURE"
+        _log.error_message = "Failed to parse archive data."
+        return _log
+
+    _log.set_data(data)
+    return _log
+
+
+def get_last_archive(repo_path: str) -> BorgdroneEvent[Optional[dict]]:
+    """Get the last archive from the repository.
+
+    Arguments:
+        repo_path -- Path to the repository.
+
+    Returns:
+        BorgdroneEvent[Dict[str, Any]]:
+            containing the archive info in the format of the Archive model.
+    """
+    _log = BorgdroneEvent[Optional[Dict[str, Any]]]()
+    _log.event = "BorgRunner.get_last_archive"
+
+    result_log = borg_info(repo_path, last=1)
+    if not (archive_data := result_log.get_data()):
+        _log.status = "FAILURE"
+        _log.error_message = result_log.error_message
+        return _log
+
+    data = __parse_archive_info(archive_data)
+    if not data:
+        _log.status = "FAILURE"
+        _log.error_message = "Failed to parse archive data."
+        return _log
+
+    _log.set_data(data)
     return _log

@@ -1,9 +1,10 @@
 from typing import List, Optional
 
-from sqlalchemy import Column, ForeignKey, Table, update
+from sqlalchemy import Column, ForeignKey, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from borgdrone.extensions import Base, db
+from borgdrone.logging import logger
 
 OptBackupBundle = Optional["BackupBundle"]
 ListBackupBundle = List["BackupBundle"]
@@ -14,8 +15,8 @@ ListBackupDirectory = List["BackupDirectory"]
 association_table = Table(
     "association_table",
     Base.metadata,
-    Column("backupbundle_id", ForeignKey("backupbundle.id"), primary_key=True),
-    Column("backupdirectory_id", ForeignKey("backupdirectory.id"), primary_key=True),
+    Column("backupbundle_id", ForeignKey("backupbundle.id", ondelete="CASCADE"), primary_key=True),
+    Column("backupdirectory_id", ForeignKey("backupdirectory.id", ondelete="CASCADE"), primary_key=True),
 )
 
 
@@ -29,7 +30,8 @@ class BackupBundle(db.Model):
 
     ## parent
     backupdirectories: Mapped[List["BackupDirectory"]] = relationship(
-        secondary=association_table, back_populates="backupbundles", cascade="all, delete"
+        secondary=association_table,
+        back_populates="backupbundles",
     )
 
     archives = relationship("Archive", back_populates="backupbundle", cascade="all, delete")
@@ -58,11 +60,10 @@ class BackupBundle(db.Model):
     def delete(self):
         db.session.delete(self)
         db.session.commit()
-
-    def update_kwargs(self, **kwargs):
-        stmt = update(BackupBundle).where(BackupBundle.id == self.id).values(**kwargs)
-        db.session.execute(stmt)
-        db.session.commit()
+        for directory in self.backupdirectories:
+            if not directory.backupbundles:
+                logger.error(directory.path)
+                directory.delete()
 
     def update(self):
         db.session.commit()
@@ -75,7 +76,8 @@ class BackupDirectory(db.Model):
 
     # child relationships
     backupbundles: Mapped[List[BackupBundle]] = relationship(
-        secondary=association_table, back_populates="backupdirectories"
+        secondary=association_table,
+        back_populates="backupdirectories",
     )
 
     path: Mapped[str]
@@ -91,14 +93,6 @@ class BackupDirectory(db.Model):
 
     def add_to_session(self):
         db.session.add(self)
-
-    def update_kwargs(self, **kwargs):
-        stmt = update(BackupDirectory).where(BackupDirectory.id == self.id).values(**kwargs)
-        db.session.execute(stmt)
-        db.session.commit()
-
-    def update(self):
-        db.session.commit()
 
     def delete(self):
         db.session.delete(self)

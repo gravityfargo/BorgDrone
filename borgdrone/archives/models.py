@@ -1,4 +1,3 @@
-import json
 from typing import List, Optional
 
 from sqlalchemy import ForeignKey
@@ -40,7 +39,7 @@ class Archive(db.Model):
         db.session.add(self)
         db.session.commit()
 
-    def create_from_dict(self, data: dict) -> "Archive":
+    def update_from_dict(self, data: dict) -> "Archive":
         """Expects raw output from `borg list --json`"""
         for key, value in data.items():
             setattr(self, key, value)

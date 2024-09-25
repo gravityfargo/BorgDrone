@@ -11,6 +11,7 @@
 <form class="vstack gap-2"
     hx-target="#content"
     hx-post="{{ url_for('bundles.bundle_form',purpose=form_purpose) }}">
+    <input type="text" name="bundle_id" value="{{ bundle.id }}" hidden>
 
     <div class="p-2 border rounded bg-body-tertiary">
         <label for="repo" class="form-label">Choose a Repository</label>
@@ -129,7 +130,9 @@
     <div class="p-2 border rounded bg-body-tertiary" hidden>
         <div class="row p-2">
             <div class="col">
-                <p><b>optional arguments</b></p>
+                <p>
+                    <b>optional arguments</b>
+                </p>
                 {{ form_check('--stats', 'stats') }}
                 {{ form_check('--list', 'list') }}
                 {{ form_check('--json', 'json') }}
@@ -148,7 +151,9 @@
                 {{ text_input("--compression", "compression", value="none") }}
             </div>
             <div class="col">
-                <p><b>Include/Exclude options</b></p>
+                <p>
+                    <b>Include/Exclude options</b>
+                </p>
                 {{ form_check('--exclude-caches', 'exclude_caches') }}
                 {{ form_check('--keep-exclude-tags', 'keep_exclude_tags') }}
                 {{ form_check('--exclude-nodump', 'exclude_nodump') }}
@@ -161,7 +166,9 @@
         <hr>
         <div class="row p-2">
             <div class="col">
-                <p><b>Filesystem options</b></p>
+                <p>
+                    <b>Filesystem options</b>
+                </p>
                 {{ form_check('--one-file-system', 'one_file_system') }}
                 {{ form_check('--numeric-ids', 'numeric_ids') }}
                 {{ form_check('--noatime', 'noatime') }}
@@ -177,7 +184,9 @@
                 {{ text_input("--files-cache", "files_cache", value="ctime,size,inode") }}
             </div>
             <div class="col">
-                <p><b>Archive options</b></p>
+                <p>
+                    <b>Archive options</b>
+                </p>
                 {{ text_input('--comment', 'comment') }}
                 <!-- TODO: Default timestamp in settings table -->
                 {{ text_input("--timestamp", "timestamp", value="UTC") }}

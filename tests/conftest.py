@@ -8,8 +8,9 @@ from flask import Flask
 from flask_login import LoginManager, current_user
 
 from borgdrone import create_app
+from borgdrone.archives import Archive
 from borgdrone.auth import Users
-from borgdrone.bundles import BackupBundle, BackupDirectory
+from borgdrone.bundles import BackupBundle, BackupDirectory, BundleManager
 from borgdrone.helpers import database, filemanager
 from borgdrone.repositories import Repository
 
@@ -85,6 +86,7 @@ def new_instance_subdir() -> str:
 @pytest.fixture(scope="session", name="app")
 def ctx_app():
     os.environ["INSTANCE_PATH"] = INSTANCE_PATH
+    os.environ["PYTESTING"] = "True"
     app = create_app()
     for path in TEST_PATHS_1 + TEST_PATHS_2:
         os.makedirs(path, exist_ok=True)
@@ -171,3 +173,12 @@ def ctx_bundle(client, repository):
     yield bundle, form_data
 
     response = client.delete(f"/bundles/delete/{bundle.id}")
+
+
+@pytest.fixture(scope="function", name="archive")
+def ctx_archive(client, bundle):
+    bundle_instance, _ = bundle
+    archive_count = database.count(Archive)
+    result_log = BundleManager.create_backup(bundle_instance.id)
+    assert result_log.status == "SUCCESS"
+    assert database.count(Archive) == archive_count + 1

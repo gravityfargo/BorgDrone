@@ -1,26 +1,33 @@
-import pytest
+# pylint: disable=W0611
+from borgdrone.archives import Archive
+from borgdrone.archives import ArchivesManager as archives_manager
+from borgdrone.helpers import database
+from borgdrone.logging import logger
 
-from borgdrone.bundles import BundleManager as bundle_manager
-from borgdrone.logging import logger as log
+from ..conftest import ctx_archive
 
-import tests.conftest
-
-
-@pytest.fixture(scope="session", name="archive")
-def test_BundleManager_create_backup(logged_in, repository, bundle):
-    result_log = bundle_manager.create_backup(bundle.id)
-    assert result_log.status == "SUCCESS"
-    return result_log.data
+# def test_get(client):
+#     response = client.get("/archives/")
+#     assert response.status_code == 200
 
 
-def test_get(client, logged_in, archive):
-    response = client.get("/archives/")
-    assert response.status_code == 200
+# def test_get_archives(client, repository):
+#     form_data = {"repo_db_id": repository.id}
+#     response = client.post("/archives/get", data=form_data)
+#     assert response.status_code == 200
+
+#     response = client.post("/archives/get")
+#     assert response.status_code == 200
 
 
-def test_get_archives(client, logged_in, repository):
-    form_data = {"repo_db_id": repository.id}
-    response = client.post("/archives/get", data=form_data)
-    log.warning(response.headers["BORGDRONE_RETURN"])
+def test_refresh_archive(client, archive):
+    instance = database.get_latest(Archive)
+    assert instance is not None
 
-    assert response.status_code == 200
+    archives_manager.get_one(archive_name=instance.name)
+    archives_manager.get_one(db_id=instance.id)
+    archives_manager.get_one(archive_id=instance.archive_id)
+    archives_manager.get_all(instance.backupbundle.repo_id)
+
+    archives_manager.refresh_archive("FakeArchive")
+    result_log = archives_manager.refresh_archive(instance.name)

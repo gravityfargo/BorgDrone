@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 import yaml
+from flask import current_app as app
 from flask_login import current_user
 from sqlalchemy import select
 
@@ -19,30 +20,28 @@ from .models import BackupBundle, ListBackupBundle, OptBackupBundle
 
 
 def get_one(bundle_id: OptInt = None, repo_id: OptInt = None, command_line: OptStr = None) -> OptBackupBundle:
+    stmt = None
     instance = None
     if repo_id:
         stmt = select(BackupBundle).where(BackupBundle.repo_id == repo_id)
-        instance = db.session.scalars(stmt).first()
-
     elif bundle_id:
         stmt = select(BackupBundle).where(BackupBundle.id == bundle_id)
-        instance = db.session.scalars(stmt).first()
-
     elif command_line:
         stmt = select(BackupBundle).where(BackupBundle.command_line == command_line)
+
+    if stmt is not None:
         instance = db.session.scalars(stmt).first()
 
     return instance
 
 
 def get_all(repo_id: OptStr = None) -> Optional[ListBackupBundle]:
-    instances = None
     if repo_id:
         stmt = select(BackupBundle).where(BackupBundle.repo_id == repo_id)
-        instances = list(db.session.scalars(stmt).all())
     else:
         stmt = select(BackupBundle).join(Repository).where(Repository.user_id == current_user.id)
-        instances = list(db.session.scalars(stmt).all())
+
+    instances = list(db.session.scalars(stmt).all())
 
     return instances
 
@@ -69,19 +68,16 @@ def __process_directories(bundle, form_data: Dict[str, Any]) -> Optional[Dict[st
     for key, value in form_data.items():
         if key.startswith("includedir") or key.startswith("excludedir"):
             yaml_data: Dict[str, Any] = yaml.safe_load(value)
-            if not yaml_data:
-                logger.error("Error loading yaml data.")
-                return None
 
             # check if exists
-            result_log = backup_directory_manager.get_one(path=yaml_data["path"])
-            if not (backup_dir := result_log.get_data()):
-
+            backup_dir = backup_directory_manager.get_one(path=yaml_data["path"])
+            if not backup_dir:
                 # else create the directory
-                result_log = backup_directory_manager.create_bundledirectory(bundle, **yaml_data)
-                if not (backup_dir := result_log.get_data()):
-                    logger.error("Error creating BackupDirectory")
-                    return None
+                backup_dir = backup_directory_manager.create_bundledirectory(**yaml_data)
+
+            if backup_dir not in bundle.backupdirectories:
+                bundle.backupdirectories.append(backup_dir)
+                bundle.update()
 
             if backup_dir.exclude:
                 data["exclude_dirs"].append(backup_dir)
@@ -103,7 +99,7 @@ def __form_new_command(repo_path, name_format, exclude_dirs_paths, include_dirs_
     return command_line
 
 
-def process_bundle_form(purpose: str, bundle_id: OptInt = None, **kwargs) -> BorgdroneEvent[OptBackupBundle]:
+def process_bundle_form(purpose: str, **kwargs) -> BorgdroneEvent[OptBackupBundle]:
     _log = BorgdroneEvent[OptBackupBundle]()
     _log.event = "BundleManager.process_bundle_form"
 
@@ -112,6 +108,7 @@ def process_bundle_form(purpose: str, bundle_id: OptInt = None, **kwargs) -> Bor
         bundle = _set_bundle_values(BackupBundle(), **kwargs)
 
     elif purpose == "update":
+        bundle_id = kwargs.get("bundle_id", None)
         bundle = get_one(bundle_id=bundle_id)
         if not bundle:
             return _log.not_found_message("Bundle")
@@ -233,16 +230,21 @@ def create_backup(bundle_id: int) -> BorgdroneEvent[None]:
     if not bundle.command_line:
         return _log.return_failure("Bundle has no command line set.")
 
-    logger.debug(bundle.command_line)
+    emit_socket = True
+    if app.config["PYTESTING"] == "True":
+        emit_socket = False
 
-    bash.popen(bundle.command_line)
+    bash.popen(bundle.command_line, emit_socket)
+    # TODO: Add a check for the return code of the borg command
+    # i.e OSError: [Errno 28] No space left on device
 
     # Add the new archive to the database
     result_log = borg_runner.get_last_archive(bundle.repo.path)
     if not (archive_data := result_log.get_data()):
+        logger.error(bundle.command_line)
         return _log.return_failure("Error getting archive data.")
 
-    archive = Archive().create_from_dict(archive_data)
+    archive = Archive().update_from_dict(archive_data)
 
     bundle.archives.append(archive)
     bundle.commit()

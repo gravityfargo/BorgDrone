@@ -23,8 +23,7 @@ def index():
     rh.context_data = {"bundles": []}
 
     bundles = bundle_manager.get_all()
-    if bundles:
-        rh.context_data = {"bundles": bundles}
+    rh.context_data = {"bundles": bundles}
 
     return rh.respond()
 
@@ -108,7 +107,7 @@ def bundle_form(purpose: str, bundle_id: OptInt) -> Any:
     if request.method == "POST":
         data = request.form
 
-        result_log = bundle_manager.process_bundle_form(purpose=purpose, bundle_id=bundle_id, **data)
+        result_log = bundle_manager.process_bundle_form(purpose=purpose, **data)
         rh.borgdrone_return = result_log.borgdrone_return()
 
         # Handle failure
@@ -119,7 +118,8 @@ def bundle_form(purpose: str, bundle_id: OptInt) -> Any:
 
         # Success, redirect to index with success message
         rh.toast_success = result_log.message
-        rh.htmx_refresh = True
+        bundles = bundle_manager.get_all()
+        rh.context_data = {"bundles": bundles}
         return rh.respond()
 
     # GET method handling
