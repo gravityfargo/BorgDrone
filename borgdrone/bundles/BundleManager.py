@@ -1,4 +1,3 @@
-import json
 from typing import Any, Dict, List, Optional
 
 import yaml
@@ -19,12 +18,7 @@ from . import BackupDirectoryManager as backup_directory_manager
 from .models import BackupBundle, ListBackupBundle, OptBackupBundle
 
 
-def get_one(
-    bundle_id: OptInt = None, repo_id: OptInt = None, command_line: OptStr = None
-) -> BorgdroneEvent[OptBackupBundle]:
-    _log = BorgdroneEvent[OptBackupBundle]()
-    _log.event = "BundleManager.get_one"
-
+def get_one(bundle_id: OptInt = None, repo_id: OptInt = None, command_line: OptStr = None) -> OptBackupBundle:
     instance = None
     if repo_id:
         stmt = select(BackupBundle).where(BackupBundle.repo_id == repo_id)
@@ -38,22 +32,10 @@ def get_one(
         stmt = select(BackupBundle).where(BackupBundle.command_line == command_line)
         instance = db.session.scalars(stmt).first()
 
-    _log.set_data(instance)
-
-    if not instance:
-        _log.status = "FAILURE"
-        _log.error_message = "Bundle not found."
-    else:
-        _log.status = "SUCCESS"
-        _log.message = "BackupBundle Retrieved."
-
-    return _log  # No need to log this, so not using return_success()
+    return instance
 
 
-def get_all(repo_id: OptStr = None) -> BorgdroneEvent[Optional[ListBackupBundle]]:
-    _log = BorgdroneEvent[Optional[ListBackupBundle]]()
-    _log.event = "BundleManager.get_all"
-
+def get_all(repo_id: OptStr = None) -> Optional[ListBackupBundle]:
     instances = None
     if repo_id:
         stmt = select(BackupBundle).where(BackupBundle.repo_id == repo_id)
@@ -62,15 +44,7 @@ def get_all(repo_id: OptStr = None) -> BorgdroneEvent[Optional[ListBackupBundle]
         stmt = select(BackupBundle).join(Repository).where(Repository.user_id == current_user.id)
         instances = list(db.session.scalars(stmt).all())
 
-    _log.set_data(instances)
-    if not instances:
-        _log.status = "FAILURE"
-        _log.error_message = "Bundles not found."
-    else:
-        _log.status = "SUCCESS"
-        _log.message = "BackupBundles Retrieved."
-
-    return _log  # No need to log this, so not using return_success()
+    return instances
 
 
 def _set_bundle_values(bundle: BackupBundle, **kwargs) -> BackupBundle:
@@ -138,15 +112,15 @@ def process_bundle_form(purpose: str, bundle_id: OptInt = None, **kwargs) -> Bor
         bundle = _set_bundle_values(BackupBundle(), **kwargs)
 
     elif purpose == "update":
-        result_log = get_one(bundle_id=bundle_id)
-        if not (bundle := result_log.get_data()):
+        bundle = get_one(bundle_id=bundle_id)
+        if not bundle:
             return _log.not_found_message("Bundle")
     else:
         return _log.return_failure("Invalid purpose.")
 
     # get the parent repository
     repo = repository_manager.get_one(db_id=bundle.repo_id)
-    if not (repo := repo.get_data()):
+    if not repo:
         return _log.not_found_message("Repository")
 
     # add the bundle to the repository
@@ -217,9 +191,8 @@ def delete_bundle(bundle_id: int) -> BorgdroneEvent[None]:
     _log = BorgdroneEvent[None]()
     _log.event = "BundleManager.delete_bundle"
 
-    result_log = get_one(bundle_id=bundle_id)
-
-    if not (bundle := result_log.get_data()):
+    bundle = get_one(bundle_id=bundle_id)
+    if not bundle:
         return _log.not_found_message("Bundle")
 
     bundle.delete()
@@ -253,8 +226,8 @@ def create_backup(bundle_id: int) -> BorgdroneEvent[None]:
     _log = BorgdroneEvent[None]()
     _log.event = "BundleManager.create_backup"
 
-    result_log = get_one(bundle_id=bundle_id)  # get the bundle
-    if not (bundle := result_log.get_data()):
+    bundle = get_one(bundle_id=bundle_id)  # get the bundle
+    if not bundle:
         return _log.not_found_message("Bundle")
 
     if not bundle.command_line:

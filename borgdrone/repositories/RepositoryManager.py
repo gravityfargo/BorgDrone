@@ -14,20 +14,19 @@ from .models import ListRepository, OptRepository, Repository
 
 
 def get_one(db_id: OptInt = None, repo_id: OptStr = None, path: OptStr = None) -> OptRepository:
+    stmt = None
+    instance = None
+
     if db_id is not None:
         stmt = select(Repository).where(Repository.id == db_id)
-        instance = db.session.scalars(stmt).first()
-
     elif repo_id is not None:
         stmt = select(Repository).where(Repository.repo_id == repo_id)
-        instance = db.session.scalars(stmt).first()
-
     elif path is not None:
         stmt = select(Repository).where(Repository.path == path)
-        instance = db.session.scalars(stmt).first()
-
     else:
         stmt = select(Repository).where(Repository.user_id == current_user.id)
+
+    if stmt is not None:
         instance = db.session.scalars(stmt).first()
 
     return instance
@@ -39,24 +38,6 @@ def get_all() -> Optional[ListRepository]:
     instances = list(db.session.scalars(stmt).all())
 
     return instances
-
-
-def get_latest() -> BorgdroneEvent[OptRepository]:
-    _log = BorgdroneEvent[OptRepository]()
-    _log.event = "RepositoryManager.get_latest"
-
-    stmt = select(Repository).order_by(Repository.id.desc())
-    instance = db.session.scalars(stmt).first()
-
-    _log.set_data(instance)
-    if not instance:
-        _log.status = "FAILURE"
-        _log.error_message = "No repositories found."
-    else:
-        _log.status = "SUCCESS"
-        _log.message = "Latest repository retrieved."
-
-    return _log
 
 
 def create_repo(path: str, encryption: str) -> BorgdroneEvent[Repository]:

@@ -1,7 +1,4 @@
-import os
-
-import pytest
-
+# pylint: disable=W0611
 from borgdrone.bundles import BackupBundle, BackupDirectory
 from borgdrone.bundles import BundleManager as bundle_manager
 from borgdrone.helpers import database
@@ -50,22 +47,18 @@ def test_get(client, logged_in, bundle):
     bundle_instance, _ = bundle
     # SUCCESS bundle_form update
     response = client.get(f"/bundles/form/update/{bundle_instance.id}")
-    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.get_one.SUCCESS"
     assert response.status_code == 200
 
     # FAIL bundle_form update | does not exist
     response = client.get("/bundles/form/update/0")
-    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.get_one.FAILURE"
     assert response.status_code == 200
 
     # SUCCESS run_backup
     response = client.get(f"/bundles/{bundle_instance.id}/run")
-    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.get_one.SUCCESS"
     assert response.status_code == 200
 
     # FAIL run_backup | does not exist
     response = client.get("/bundles/0/run")
-    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.get_one.FAILURE"
     assert response.status_code == 200
 
 

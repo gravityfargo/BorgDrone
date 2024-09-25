@@ -11,7 +11,7 @@ from borgdrone import create_app
 from borgdrone.auth import Users
 from borgdrone.bundles import BackupBundle, BackupDirectory
 from borgdrone.helpers import database, filemanager
-from borgdrone.repositories import RepositoryManager as repository_manager
+from borgdrone.repositories import Repository
 
 INSTANCE_PATH = f"/tmp/borgdrone_pytest_{randint(0, 1000)}"
 
@@ -142,12 +142,12 @@ def ctx_repo(client):
     }
     # Session: the fixture is destroyed at the end of the session.
     client.post("/repositories/create/", data=repo)
-    result_log = repository_manager.get_latest()
-    assert result_log.data
+    repository = database.get_latest(Repository)
+    assert repository
 
-    yield result_log.get_data()
+    yield repository
 
-    response = client.delete(f"/repositories/delete/{result_log.data.id}")
+    response = client.delete(f"/repositories/delete/{repository.id}")
     assert response.headers["BORGDRONE_RETURN"] == "RepositoryManager.delete_repo.SUCCESS"
 
 

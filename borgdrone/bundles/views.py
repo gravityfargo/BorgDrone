@@ -20,9 +20,11 @@ bundles_blueprint = Blueprint("bundles", __name__, template_folder="templates")
 @login_required
 def index():
     rh = ResponseHelper(get_template="bundles/index.html")
+    rh.context_data = {"bundles": []}
 
-    result_log = bundle_manager.get_all()
-    rh.context_data = {"bundles": result_log.get_data()}
+    bundles = bundle_manager.get_all()
+    if bundles:
+        rh.context_data = {"bundles": bundles}
 
     return rh.respond()
 
@@ -100,14 +102,13 @@ def bundle_form(purpose: str, bundle_id: OptInt) -> Any:
     )
 
     # Fetch repositories to populate the form
-    result_log = repository_manager.get_all()
-    rh.context_data = {"repos": result_log.get_data(), "form_purpose": purpose}
+    repos = repository_manager.get_all()
+    rh.context_data = {"repos": repos, "form_purpose": purpose}
 
     if request.method == "POST":
         data = request.form
 
         result_log = bundle_manager.process_bundle_form(purpose=purpose, bundle_id=bundle_id, **data)
-
         rh.borgdrone_return = result_log.borgdrone_return()
 
         # Handle failure
@@ -135,14 +136,13 @@ def bundle_form(purpose: str, bundle_id: OptInt) -> Any:
 
     elif purpose == "update":
         # Fetch the existing bundle for update
-        result_log = bundle_manager.get_one(bundle_id=bundle_id)
-        rh.borgdrone_return = result_log.borgdrone_return()
+        bundle = bundle_manager.get_one(bundle_id=bundle_id)
 
-        if result_log.status == "FAILURE":
-            rh.toast_error = result_log.error_message
+        if not bundle:
+            rh.toast_error = "Bundle not found."
             return rh.respond(empty=True)
 
-        rh.context_data["bundle"] = result_log.get_data()
+        rh.context_data["bundle"] = bundle
 
     return rh.respond()
 
@@ -169,10 +169,10 @@ def run_backup(bundle_id: int):
     rh = ResponseHelper(
         get_template="bundles/runner.html",
     )
-    result_log = bundle_manager.get_one(bundle_id=bundle_id)
-    rh.borgdrone_return = result_log.borgdrone_return()
+    bundle = bundle_manager.get_one(bundle_id=bundle_id)
 
-    if not (bundle := result_log.get_data()):
+    if not bundle:
+        rh.toast_error = "Bundle not found."
         return rh.respond(empty=True)
 
     rh.context_data = {"bundle": bundle}
