@@ -1,10 +1,10 @@
 # pylint: disable=W0611
 from borgdrone.borg import BorgRunner as borg_runner
-
+from borgdrone.repositories import RepositoryManager as repository_manager
 from ..conftest import ctx_repo, new_instance_subdir
 
 
-def test_get(client):
+def test_get(client, repository):
     response = client.get("/repositories/")
     assert response.status_code == 200
 
@@ -13,6 +13,11 @@ def test_get(client):
 
     response = client.get("/repositories/")
     assert response.status_code == 200
+
+    repository_manager.get_one(db_id=repository.id)
+    repository_manager.get_one(repo_id=repository.repo_id)
+    repository_manager.get_one(path=repository.path)
+    repository_manager.get_all()
 
 
 def test_create_repo_get(client):

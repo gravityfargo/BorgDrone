@@ -23,8 +23,6 @@ def get_one(db_id: OptInt = None, repo_id: OptStr = None, path: OptStr = None) -
         stmt = select(Repository).where(Repository.repo_id == repo_id)
     elif path is not None:
         stmt = select(Repository).where(Repository.path == path)
-    else:
-        stmt = select(Repository).where(Repository.user_id == current_user.id)
 
     if stmt is not None:
         instance = db.session.scalars(stmt).first()
@@ -54,9 +52,6 @@ def create_repo(path: str, encryption: str) -> BorgdroneEvent[Repository]:
         return _log.return_failure(init_result_log.error_message)
 
     info_result_log = get_repository_info(path=path)
-    if info_result_log.status == "FAILURE":
-        return _log.return_failure(info_result_log.error_message)
-
     if not (repo := info_result_log.get_data()):
         message = "Failed to get repository info. This should not be possible here!"
         return _log.return_failure(message)
@@ -150,11 +145,7 @@ def update_repository_info(db_id: OptInt = None, path: OptStr = None) -> Borgdro
         return _log.not_found_message("Repository")
 
     result_log = get_repository_info(instance.path)
-    if result_log.status == "FAILURE":
-        return _log.return_failure(result_log.error_message)
-
-    data = result_log.get_data()
-    if not data:
+    if not (data := result_log.get_data()):
         error_message = "Failed to get repository info. This should not be possible!"
         return _log.return_failure(error_message)
 
