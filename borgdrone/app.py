@@ -23,7 +23,7 @@ def load_user(user_id):
     return Users.query.get(int(user_id))
 
 
-def create_app(enable_logging: bool = True) -> Flask:
+def create_app() -> Flask:
     config = get_secret_config()
     app = Flask(__name__)
     app.config.from_mapping(config)
@@ -68,10 +68,6 @@ def create_app(enable_logging: bool = True) -> Flask:
         app.register_blueprint(archives_blueprint, url_prefix="/archives")
         app.register_blueprint(dashboard_blueprint, url_prefix="/")
         app.register_blueprint(settings_blueprint, url_prefix="/settings")
-
-        if not enable_logging:
-            # used in .logging.logger to disable debug messages during testing
-            app.config["PYTESTING"] = True
 
         from .logging.config import configure_logging
 
@@ -153,4 +149,5 @@ def get_secret_config() -> dict[str, Any]:
             if value:
                 os.environ[key] = value
 
+    config_data["PYTESTING"] = os.environ.get("PYTESTING", "False")
     return config_data
