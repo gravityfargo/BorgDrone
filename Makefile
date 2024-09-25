@@ -34,3 +34,7 @@ test-repos:
 test-bundles:
 	clear
 	poetry run pytest tests/requests/test_bundles.py
+
+test-archives:
+	clear
+	poetry run pytest tests/requests/test_archives.py
