@@ -12,80 +12,47 @@ from borgdrone.types import OptInt, OptStr
 from .models import Archive, ListArchive, OptArchive, OptListArchive
 
 
-def get_one(
-    db_id: OptInt = None, archive_id: OptStr = None, archive_name: OptStr = None
-) -> BorgdroneEvent[OptArchive]:
-    _log = BorgdroneEvent[OptArchive]()
-    _log.event = "ArchivesManager.get_one"
-
+def get_one(db_id: OptInt = None, archive_id: OptStr = None, archive_name: OptStr = None) -> OptArchive:
     instance = None
+    stmt = None
     if db_id is not None:
         stmt = select(Archive).where(Archive.id == db_id)
-        instance = db.session.scalars(stmt).first()
-
     elif archive_id is not None:
         stmt = select(Archive).where(Archive.archive_id == archive_id)
-        instance = db.session.scalars(stmt).first()
-
     elif archive_name is not None:
         stmt = select(Archive).where(Archive.name == archive_name)
+
+    if stmt is not None:
         instance = db.session.scalars(stmt).first()
 
-    _log.set_data(instance)
-    if not instance:
-        _log.status = "FAILURE"
-        _log.error_message = "Archive not found."
-    else:
-        _log.status = "SUCCESS"
-        _log.message = "Archive Retrieved."
-
-    return _log
+    return instance
 
 
-def get_all(repo_id: int) -> BorgdroneEvent[OptListArchive]:
-    _log = BorgdroneEvent[OptListArchive]()
-    _log.event = "ArchivesManager.get_all"
-
+def get_all(repo_id: int) -> OptListArchive:
     stmt = select(Archive).join(BackupBundle).where(BackupBundle.repo_id == repo_id)
     instances = list(db.session.scalars(stmt).all())
-
-    _log.set_data(instances)
-    if not instances:
-        _log.status = "FAILURE"
-        _log.error_message = "Archives not found."
-    else:
-        _log.status = "SUCCESS"
-        _log.message = "Archives Retrieved."
-
-    return _log
+    return instances
 
 
 def refresh_archive(archive_name: str) -> BorgdroneEvent[None]:
     _log = BorgdroneEvent[None]()
     _log.event = "ArchivesManager.refresh_archive"
 
-    result_log = get_one(archive_id=archive_name)
-    if not (archive := result_log.get_data()):
+    archive = get_one(archive_name=archive_name)
+    if not archive:
         return _log.not_found_message("Archive")
 
     # get parent repository
-    result_log = repository_manager.get_one(db_id=archive.backupbundle.repo_id)
-    if not (repository := result_log.get_data()):
+    repository = repository_manager.get_one(db_id=archive.backupbundle.repo_id)
+    if not repository:  # this should not be possible
         return _log.not_found_message("Repository")
 
     # run borg command
-    result_log = borg_runner.borg_info(repository.path, archive.name)
+    result_log = borg_runner.archive_info(repository.path, archive.name)
     if not (data := result_log.get_data()):
         return _log.return_failure(result_log.error_message)
 
-    info = data["archives"][0]
-    stats = info["stats"]
-
-    archive.duration = info["duration"]
-    archive.stats_compressed_size = datahelpers.convert_bytes(stats["compressed_size"])
-    archive.stats_deduplicated_size = datahelpers.convert_bytes(stats["deduplicated_size"])
-    archive.stats_nfiles = stats["nfiles"]
-    archive.stats_original_size = datahelpers.convert_bytes(stats["original_size"])
+    archive.update_from_dict(data)
     archive.commit()
 
     return _log.return_success("Archive updated.")
