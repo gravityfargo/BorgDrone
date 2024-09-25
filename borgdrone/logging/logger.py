@@ -87,6 +87,6 @@ def borg_temp_log(message: str) -> None:
     borg_logger.debug(message, stacklevel=2)
 
 
-def process_borg_temp_log(target_file: str) -> None:
-    logs_path = app.config.get("LOGS_DIR")
-    log_file = f"{logs_path}/borg_temp.log"
+# def process_borg_temp_log(target_file: str) -> None:
+#     logs_path = app.config.get("LOGS_DIR")
+#     log_file = f"{logs_path}/borg_temp.log"
