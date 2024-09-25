@@ -5,14 +5,21 @@ from flask import copy_current_request_context
 from flask_socketio import emit
 
 from borgdrone.extensions import socketio
-from borgdrone.logging import logger as log
+from borgdrone.logging import logger
 
 
-def popen(command: List[str]):
+def popen(command: str | list, emit_socket: bool = False):
+    if isinstance(command, str):
+        cmd = command.split(" ")
+    else:
+        # The list constants contain list items with aguments that need to be separated
+        command = " ".join(command)
+        cmd = command.split(" ")
+
     @copy_current_request_context  # Ensures Flask context is copied to the new thread
     def run_command():
 
-        with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as process:
+        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as process:
             while True:
                 if not process.stdout:
                     continue
@@ -20,8 +27,10 @@ def popen(command: List[str]):
                 output = process.stdout.readline()
                 if output:
                     line = output.strip("\n")
-                    emit("send_line", {"text": line}, broadcast=True)
-                    log.borg_temp_log(line)
+                    if emit_socket:
+                        emit("send_line", {"text": line})
+                    logger.borg_temp_log(line)
+                    logger.debug(line)
                     continue
 
                 if not process.stderr:
@@ -30,17 +39,22 @@ def popen(command: List[str]):
                 error = process.stderr.readline()
                 if error:
                     line = error.strip("\n")
-                    emit("send_line", {"text": f"{line}\n"}, broadcast=True)
-                    log.borg_temp_log(line)
+                    if emit_socket:
+                        emit("send_line", {"text": line})
+
+                    logger.borg_temp_log(line)
+                    logger.debug(line)
                     continue
 
                 if output == "" and process.poll() is not None:
                     # log_output("Command finished")
                     break
 
-    # Running the command in a new thread to allow Flask to continue processing other events
-    socketio.start_background_task(run_command)
-    # return send_back
+    if emit_socket:
+        # Running the command in a new thread to allow Flask to continue processing other events
+        socketio.start_background_task(run_command)
+    else:
+        run_command()
 
 
 def run(command: str | list, capture_output=True, text_mode=True):

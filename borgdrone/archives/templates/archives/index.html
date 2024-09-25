@@ -1,22 +1,49 @@
 <script>
-     select_tab("{{ selected_tab }}");
+    select_tab("{{ selected_tab }}");
 </script>
 <div class="p-2 border-bottom bg-body-tertiary mb-2 shadow">
-    <form class="hstack justify-content-between"
-          hx-post="{{ url_for('archives.get_archives') }}"
-          hx-target="#archives"
-          hx-swap="innerHTML">
-        <div class="d-flex flex-column gap-1 flex-shrink-1">
+    <div class="hstack gap-3">
+
+        <div class="vstack">
             <h5>Archives</h5>
-            <span>Choose a Repository</span>
-
-            <select name="repo_id" class="form-select">
-                {% for repo in repositories %}<option value="{{ repo.id }}">{{ repo.path }}</option>{% endfor %}
-            </select>
-
+            <span>Description</span>
         </div>
-        <button type="submit" class="btn btn-primary">Get Archives</button>
-    </form>
+
+    </div>
+</div>
+
+<div class="p-2 border-bottom bg-body-tertiary mb-2 shadow d-flex">
+
+    <div class="p-2 flex-grow-1">
+        <select name="repo_db_id" class="form-select">
+            {% for repo in repositories %}
+            <option value="{{ repo.id }}">
+                {{ repo.path }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="btn-group p-2">
+        <button type="submit"
+            class="btn btn-warning"
+            hx-post="{{ url_for('archives.refresh_archives') }}"
+            hx-target="#archives"
+            hx-swap="innerHTML"
+            hx-include="[name='repo_db_id']">
+            Refresh Archive List
+        </button>
+
+        <button type="submit"
+            class="btn btn-primary"
+            hx-post="{{ url_for('archives.get_archives') }}"
+            hx-target="#archives"
+            hx-swap="innerHTML"
+            hx-include="[name='repo_db_id']">
+            Populate Archive List
+        </button>
+    </div>
+
 </div>
 
 <div id="archives"></div>

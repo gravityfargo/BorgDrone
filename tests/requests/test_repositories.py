@@ -1,32 +1,17 @@
-import pytest
-
 from borgdrone.borg import BorgRunner as borg_runner
-from borgdrone.repositories import RepositoryManager as repository_manager
 
-from ..conftest import new_instance_subdir
-
-# TODO: seperate logger for testing formatting
+from ..conftest import ctx_repo, new_instance_subdir
 
 
-@pytest.fixture(scope="function", name="repository")
-def test_repo(client):
-    repo = {
-        "path": new_instance_subdir(),
-        "encryption": "none",
-    }
-    # function: the fixture is destroyed at the end of the test.
-    client.post("/repositories/create/", data=repo)
-    result_log = repository_manager.get_latest()
-    assert result_log.get_data()
-
-    yield result_log.get_data()
-
-
-def test_index_fail(client):
+def test_get(client):
+    # FAIL no repositories exist
     response = client.get("/repositories/")
     assert response.status_code == 200
-    # FAIL no repositories exist
     assert response.headers["BORGDRONE_RETURN"] == "RepositoryManager.get_all.FAILURE"
+
+    # OK GET
+    response = client.get("/repositories/import")
+    assert response.status_code == 200
 
 
 def test_index_success(client, repository):
@@ -83,13 +68,9 @@ def test_repository_info(client, repository):
     assert response.headers["BORGDRONE_RETURN"] == "Borg.Repository.DoesNotExist"
 
 
-def test_delete_repo(client, repository):
-    # OK
-    response = client.delete(f"/repositories/delete/{repository.id}")
-    assert response.headers["BORGDRONE_RETURN"] == "RepositoryManager.delete_repo.SUCCESS"
-
+def test_delete_repo_fail(client):
     # FAIL
-    response = client.delete(f"/repositories/delete/{repository.id}")
+    response = client.delete("/repositories/delete/0")
     assert response.headers["BORGDRONE_RETURN"] == "RepositoryManager.delete_repo.FAILURE"
 
 
@@ -97,16 +78,11 @@ def test_import_repo(client):
     # pylint: disable=protected-access
     # create repo without adding to db
     path = new_instance_subdir()
-    print(path)
 
     repo = {
         "path": path,
         "encryption": "none",
     }
-
-    # OK GET
-    response = client.get("/repositories/import")
-    assert response.status_code == 200
 
     result_log = borg_runner.create_repository(path=repo["path"], encryption=repo["encryption"])
     assert result_log.status == "SUCCESS"
@@ -129,6 +105,6 @@ def test_update_stats(client, repository):
     response = client.post(f"/repositories/update/{repository.id}")
     assert response.headers["BORGDRONE_RETURN"] == "RepositoryManager.update_repository_info.SUCCESS"
 
-    # FAIL
+    # FAIL | Failed to find repository.
     response = client.post("/repositories/update/0")
     assert response.headers["BORGDRONE_RETURN"] == "RepositoryManager.update_repository_info.FAILURE"

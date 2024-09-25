@@ -17,12 +17,7 @@ BORG_DELETE_COMMAND = [
 ]
 
 BORG_CREATE_COMMAND = [
-    "borg",
-    "--show-version",
-    "create",
-    "--stats",
-    "--progress",
-    "--one-file-system",
+    "borg create --list --stats --progress --one-file-system",
 ]
 # --exclude /dir/to/exclude
 # PATH::NAME_FORMAT

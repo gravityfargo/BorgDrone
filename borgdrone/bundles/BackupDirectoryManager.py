@@ -2,19 +2,22 @@ from sqlalchemy import select
 
 from borgdrone.extensions import db
 from borgdrone.logging import BorgdroneEvent
-from borgdrone.types import OptBool, OptInt
+from borgdrone.types import OptBool, OptInt, OptStr
 
 from .models import BackupBundle, BackupDirectory, OptBackupBundle, OptBackupDirectory
 
 
-def get_one(bundle: OptBackupBundle = None, bundledirectory_id: OptInt = None) -> BorgdroneEvent[OptBackupDirectory]:
+def get_one(bundledirectory_id: OptInt = None, path: OptStr = None) -> BorgdroneEvent[OptBackupDirectory]:
     _log = BorgdroneEvent[OptBackupDirectory]()
     _log.event = "BundleManager.get_one"
 
     instance = None
 
-    if bundle:
-        stmt = select(BackupDirectory).join(BackupDirectory.backupbundles).where(BackupBundle.id == bundle.id)
+    if bundledirectory_id:
+        stmt = select(BackupDirectory).where(BackupDirectory.id == bundledirectory_id)
+        instance = db.session.scalars(stmt).first()
+    elif path:
+        stmt = select(BackupDirectory).where(BackupDirectory.path == path)
         instance = db.session.scalars(stmt).first()
 
     _log.set_data(instance)
@@ -46,7 +49,7 @@ def find_exact_match(**kwargs) -> BorgdroneEvent[OptBackupDirectory]:
     _log.set_data(match)
 
     if not match:
-        _log.error_message = "BackupDirectory does not exist."
+        _log.error_message = "BackupDirectory not in database."
     else:
         _log.message = "BackupDirectory Retrieved."
 
@@ -97,12 +100,7 @@ def create_bundledirectory(bundle: BackupBundle, **kwargs) -> BorgdroneEvent[Opt
     backupdirectory.permissions = kwargs["permissions"]
     backupdirectory.owner = kwargs["owner"]
     backupdirectory.group = kwargs["group"]
-
-    # Ensure exclude is a boolean
-    backupdirectory.exclude = bool(kwargs.get("exclude", False))
-
-    # Attach to bundle and commit
-    backupdirectory.backupbundles.append(bundle)
+    backupdirectory.exclude = kwargs["exclude"]
     backupdirectory.commit()
 
     _log.set_data(backupdirectory)

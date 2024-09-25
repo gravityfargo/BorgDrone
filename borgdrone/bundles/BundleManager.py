@@ -1,13 +1,16 @@
+import json
 from typing import Any, Dict, List, Optional
 
 import yaml
 from flask_login import current_user
 from sqlalchemy import select
 
+from borgdrone.archives.models import Archive
+from borgdrone.borg import BorgRunner as borg_runner
 from borgdrone.borg.constants import BORG_CREATE_COMMAND
 from borgdrone.extensions import db
 from borgdrone.helpers import bash, datahelpers, filemanager
-from borgdrone.logging import BorgdroneEvent
+from borgdrone.logging import BorgdroneEvent, logger
 from borgdrone.repositories import Repository
 from borgdrone.repositories import RepositoryManager as repository_manager
 from borgdrone.types import OptInt, OptStr
@@ -70,24 +73,6 @@ def get_all(repo_id: OptStr = None) -> BorgdroneEvent[Optional[ListBackupBundle]
     return _log  # No need to log this, so not using return_success()
 
 
-def get_latest() -> BorgdroneEvent[OptBackupBundle]:
-    _log = BorgdroneEvent[OptBackupBundle]()
-    _log.event = "BundleManager.get_latest"
-
-    stmt = select(BackupBundle).order_by(BackupBundle.id.desc())
-    instance = db.session.scalars(stmt).first()
-
-    _log.set_data(instance)
-    if not instance:
-        _log.status = "FAILURE"
-        _log.error_message = "Bundle not found."
-    else:
-        _log.status = "SUCCESS"
-        _log.message = "Latest Bundle retrieved."
-
-    return _log
-
-
 def _set_bundle_values(bundle: BackupBundle, **kwargs) -> BackupBundle:
     bundle.repo_id = kwargs["repo_db_id"]
     bundle.cron_minute = kwargs["cron_minute"]
@@ -107,135 +92,129 @@ def __process_directories(bundle, form_data: Dict[str, Any]) -> Optional[Dict[st
         "exclude_dirs_paths": [],
     }
 
-    status = ""
     for key, value in form_data.items():
         if key.startswith("includedir") or key.startswith("excludedir"):
             yaml_data: Dict[str, Any] = yaml.safe_load(value)
+            if not yaml_data:
+                logger.error("Error loading yaml data.")
+                return None
 
-            # Set the exclude field based on the key type
-            if key.startswith("includedir"):
-                yaml_data["exclude"] = False
-            else:
-                yaml_data["exclude"] = True
+            # check if exists
+            result_log = backup_directory_manager.get_one(path=yaml_data["path"])
+            if not (backup_dir := result_log.get_data()):
 
-            result_log = backup_directory_manager.get_or_create_bundledirectory(bundle, **yaml_data)
+                # else create the directory
+                result_log = backup_directory_manager.create_bundledirectory(bundle, **yaml_data)
+                if not (backup_dir := result_log.get_data()):
+                    logger.error("Error creating BackupDirectory")
+                    return None
 
-            if result_log.status == "FAILURE":
-                status = "FAILURE"
-                break
-
-            backup_dir = result_log.get_data()
-            if not backup_dir:
-                status = "FAILURE"
-                break
-
-            if key.startswith("includedir"):
-                data["include_dirs"].append(backup_dir)
-                data["include_dirs_paths"].append(backup_dir.path)
-            else:
+            if backup_dir.exclude:
                 data["exclude_dirs"].append(backup_dir)
                 data["exclude_dirs_paths"].append("--exclude")
                 data["exclude_dirs_paths"].append(backup_dir.path)
-
-    if status == "FAILURE":
-        return None
+            else:
+                data["include_dirs"].append(backup_dir)
+                data["include_dirs_paths"].append(backup_dir.path)
 
     return data
 
 
-def update_bundle(bundle_id: int, **kwargs) -> BorgdroneEvent[OptBackupBundle]:
-    _log = BorgdroneEvent[OptBackupBundle]()
-    _log.event = "BundleManager.update_bundle"
-
-    result_log = get_one(bundle_id=bundle_id)
-    if not (bundle := result_log.get_data()):
-        return _log.not_found_message("Bundle")
-
-    bundle = _set_bundle_values(bundle, **kwargs)
-
-    data = __process_directories(bundle, kwargs)
-    if not data:
-        _log.set_data(None)
-        return _log.return_failure("Error processing form data.")
-
-    if not data["include_dirs"]:
-        _log.set_data(None)
-        return _log.return_failure("You must include at least one include directory.")
-
-    # remove deleted directories
-    for directory in bundle.backupdirectories:
-        if directory not in data["include_dirs"] or directory not in data["exclude_dirs"]:
-            directory.delete()
-
-    kwargs.pop("repo_db_id")
-    kwargs.pop("excludedir")
-    kwargs.pop("includedir")
-
+def __form_new_command(repo_path, name_format, exclude_dirs_paths, include_dirs_paths):
     backup_command = BORG_CREATE_COMMAND.copy()
-    backup_command.extend(data["exclude_dirs_paths"])
-    backup_command.append(f"{bundle.repo.path}::{bundle.repo.name_format}")
-    backup_command.extend(data["include_dirs_paths"])
-
-    kwargs["command_line"] = " ".join(backup_command)
-
-    bundle.update_kwargs(**kwargs)
-    _log.set_data(bundle)
-
-    return _log.return_success("Bundle updated successfully.")
+    backup_command.extend(exclude_dirs_paths)
+    backup_command.append(f"{repo_path}::{name_format}")
+    backup_command.extend(include_dirs_paths)
+    command_line = " ".join(backup_command)
+    return command_line
 
 
-def create_bundle(**kwargs) -> BorgdroneEvent[OptBackupBundle]:
+def process_bundle_form(purpose: str, bundle_id: OptInt = None, **kwargs) -> BorgdroneEvent[OptBackupBundle]:
     _log = BorgdroneEvent[OptBackupBundle]()
-    _log.event = "BundleManager.create_bundle"
+    _log.event = "BundleManager.process_bundle_form"
 
-    bundle = _set_bundle_values(BackupBundle(), **kwargs)
+    if purpose == "create":
+        # create the bundle object
+        bundle = _set_bundle_values(BackupBundle(), **kwargs)
+
+    elif purpose == "update":
+        result_log = get_one(bundle_id=bundle_id)
+        if not (bundle := result_log.get_data()):
+            return _log.not_found_message("Bundle")
+    else:
+        return _log.return_failure("Invalid purpose.")
+
+    # get the parent repository
     repo = repository_manager.get_one(db_id=bundle.repo_id)
     if not (repo := repo.get_data()):
         return _log.not_found_message("Repository")
 
+    # add the bundle to the repository
     repo.backupbundles.append(bundle)
-
     bundle.commit()
-    _log.set_data(bundle)
 
-    data = __process_directories(bundle, kwargs)
-    if not data:
-        _log.set_data(None)
+    if not (data := __process_directories(bundle, kwargs)):
         bundle.delete()
         return _log.return_failure("Error processing form data.")
 
     if not data["include_dirs"]:
-        _log.set_data(None)
         bundle.delete()
         return _log.return_failure("You must include at least one include directory.")
 
-    # Only add unique directories to the backupdirectories list
-    for directory in data["include_dirs"]:
-        if directory not in bundle.backupdirectories:
-            bundle.backupdirectories.append(directory)
-        else:
-            directory.delete()
-
-    for directory in data["exclude_dirs"]:
-        if directory not in bundle.backupdirectories:
-            bundle.backupdirectories.append(directory)
-        else:
-            directory.delete()
-
-    # "--list",
-    backup_command = BORG_CREATE_COMMAND.copy()
-    backup_command.extend(data["exclude_dirs_paths"])
-    backup_command.append(f"{bundle.repo.path}::{bundle.repo.name_format}")
-    backup_command.extend(data["include_dirs_paths"])
-
-    bundle.command_line = " ".join(backup_command)
+    backup_command = __form_new_command(
+        bundle.repo.path, bundle.repo.name_format, data["exclude_dirs_paths"], data["include_dirs_paths"]
+    )
+    bundle.command_line = backup_command
     bundle.update()
 
+    _log.set_data(bundle)
     return _log.return_success("Bundle created successfully.")
 
 
-def delete_bundle(bundle_id: int) -> BorgdroneEvent:
-    _log = BorgdroneEvent()
+def __process_command(command_line: str) -> Optional[Dict[str, Any]]:
+    exclude_dirs_paths = []
+    include_dirs_paths = []
+    repo_path = ""
+    name_format = ""
+
+    if "create" not in command_line:
+        return None
+
+    command = command_line.split("create")
+
+    part1 = command[0].split(" ")
+    if part1[0] != "borg":
+        return None
+
+    part2 = command[1].split(" ")
+
+    pos = 0
+    for i, part in enumerate(part2):
+        if not pos:
+            if part == "--exclude":
+                exclude_dirs_paths.append(part2[i + 1])
+                continue
+
+            if "::" in part:
+                j = part.split("::")
+                repo_path = j[0]
+                name_format = j[1]
+                pos = 1
+                continue
+        else:
+            include_dirs_paths.append(part)
+            continue
+
+    return {
+        "repo_path": repo_path,
+        "name_format": name_format,
+        "exclude_dirs_paths": exclude_dirs_paths,
+        "include_dirs_paths": include_dirs_paths,
+    }
+
+
+def delete_bundle(bundle_id: int) -> BorgdroneEvent[None]:
+    _log = BorgdroneEvent[None]()
     _log.event = "BundleManager.delete_bundle"
 
     result_log = get_one(bundle_id=bundle_id)
@@ -249,7 +228,7 @@ def delete_bundle(bundle_id: int) -> BorgdroneEvent:
 
 
 def check_dir(path: str) -> BorgdroneEvent[List[str]]:
-    _log = BorgdroneEvent[list]()
+    _log = BorgdroneEvent[List[str]]()
     _log.event = "BundleManager.check_dir"
 
     if not filemanager.check_dir(path):
@@ -262,12 +241,12 @@ def check_dir(path: str) -> BorgdroneEvent[List[str]]:
 
     data = result["stdout"].split()
     perms = datahelpers.convert_rwx_to_octal(data[0])
-    user = data[2]
+    owner = data[2]
     group = data[3]
 
-    _log.set_data([perms, user, group])
+    _log.set_data([perms, owner, group])
 
-    return _log.return_success("Directory exists.")
+    return _log.return_success("Directory ok.")
 
 
 def create_backup(bundle_id: int) -> BorgdroneEvent[None]:
@@ -281,6 +260,18 @@ def create_backup(bundle_id: int) -> BorgdroneEvent[None]:
     if not bundle.command_line:
         return _log.return_failure("Bundle has no command line set.")
 
-    bash.popen(bundle.command_line.split(" "))
+    logger.debug(bundle.command_line)
+
+    bash.popen(bundle.command_line)
+
+    # Add the new archive to the database
+    result_log = borg_runner.get_last_archive(bundle.repo.path)
+    if not (archive_data := result_log.get_data()):
+        return _log.return_failure("Error getting archive data.")
+
+    archive = Archive().create_from_dict(archive_data)
+
+    bundle.archives.append(archive)
+    bundle.commit()
 
     return _log.return_success("Backup created successfully.")

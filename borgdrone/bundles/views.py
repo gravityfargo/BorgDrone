@@ -8,6 +8,7 @@ from flask_socketio import emit
 from borgdrone.extensions import socketio
 from borgdrone.helpers import ResponseHelper
 from borgdrone.repositories import RepositoryManager as repository_manager
+from borgdrone.types import OptInt
 
 from . import BundleManager as bundle_manager
 from .models import BackupBundle
@@ -31,10 +32,13 @@ def index():
 def check_dir(path_type):
     rh = ResponseHelper()
 
+    exclude = True
     input_path = ""
     if path_type == "include":
+        exclude = False
         input_path = request.form.get("include_path")
     else:
+        exclude = True
         input_path = request.form.get("exclude_path")
 
     if not input_path:
@@ -56,7 +60,7 @@ def check_dir(path_type):
             permissions: {data[0]}
             owner: {data[1]}
             group: {data[2]}
-            exclude: {path_type}
+            exclude: {str(exclude)}
         </textarea>
         <td>
             {input_path}
@@ -87,7 +91,7 @@ def check_dir(path_type):
 @bundles_blueprint.route("/form/<purpose>", defaults={"bundle_id": None}, methods=["GET", "POST"])
 @bundles_blueprint.route("/form/<purpose>/<bundle_id>", methods=["GET", "POST"])
 @login_required
-def bundle_form(purpose, bundle_id) -> Any:
+def bundle_form(purpose: str, bundle_id: OptInt) -> Any:
     # Helper object for handling response rendering
     rh = ResponseHelper(
         get_template="bundles/bundle_form.html",
@@ -102,12 +106,7 @@ def bundle_form(purpose, bundle_id) -> Any:
     if request.method == "POST":
         data = request.form
 
-        if purpose == "create":
-            # Create a new bundle
-            result_log = bundle_manager.create_bundle(**data)
-        else:  # update
-            # Update the existing bundle
-            result_log = bundle_manager.update_bundle(bundle_id, **data)
+        result_log = bundle_manager.process_bundle_form(purpose=purpose, bundle_id=bundle_id, **data)
 
         rh.borgdrone_return = result_log.borgdrone_return()
 
@@ -119,6 +118,7 @@ def bundle_form(purpose, bundle_id) -> Any:
 
         # Success, redirect to index with success message
         rh.toast_success = result_log.message
+        rh.htmx_refresh = True
         return rh.respond()
 
     # GET method handling

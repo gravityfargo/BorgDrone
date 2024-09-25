@@ -2,51 +2,42 @@ import os
 
 import pytest
 
+from borgdrone.bundles import BackupBundle, BackupDirectory
 from borgdrone.bundles import BundleManager as bundle_manager
+from borgdrone.helpers import database
 
-from ..conftest import INSTANCE_PATH, new_instance_subdir
-
-
-def bundle_dir_data(client, dir_path: str):
-    test_path = os.path.join(INSTANCE_PATH, dir_path)
-    response = client.post("/bundles/check-dir/include", data={"include_path": test_path})
-    dir_data = response.data.splitlines()
-
-    test_path_data = f"""
-        {dir_data[3].decode("utf-8").strip()}
-        {dir_data[4].decode("utf-8").strip()}
-        {dir_data[5].decode("utf-8").strip()}
-        {dir_data[6].decode("utf-8").strip()}
-    """
-
-    form_data = {
-        "cron_minute": "2",
-        "cron_hour": "3",
-        "cron_day": "4",
-        "cron_month": "5",
-        "cron_weekday": "6",
-        "comment": "test comment",
-        "includedir": test_path_data,
-        "excludedir": test_path_data,
-    }
-    return form_data
+from ..conftest import TEST_PATHS_1, bundle_dir_data, ctx_repo
 
 
-@pytest.fixture(scope="function", name="bundle")
-def test_bundle(client, repository):
-    sub_dir = new_instance_subdir()
-    dir_data = bundle_dir_data(client, sub_dir)
+def test_create_bundle(client, repository):
+    exclude_paths = [TEST_PATHS_1[0], TEST_PATHS_1[1]]
+    include_paths = [TEST_PATHS_1[2], TEST_PATHS_1[3]]
+
+    form_data = bundle_dir_data(client, exclude_paths, include_paths)
 
     # SUCCESS
-    dir_data["repo_db_id"] = repository.id
-    response = client.post("/bundles/form/create", data=dir_data)
-    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.create_bundle.SUCCESS"
+    form_data["repo_db_id"] = repository.id
+    response = client.post("/bundles/form/create", data=form_data)
+    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.process_bundle_form.SUCCESS"
+    assert database.count(BackupBundle) == 1
+    assert database.count(BackupDirectory) == 4
 
-    result_log = bundle_manager.get_latest()
-    bundle = result_log.get_data()
-    assert bundle
+    # Duplicate bundles can exist.
+    form_data["repo_db_id"] = repository.id
+    response = client.post("/bundles/form/create", data=form_data)
+    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.process_bundle_form.SUCCESS"
+    assert database.count(BackupBundle) == 2
+    # Duplicate directories cannot exist.
+    assert database.count(BackupDirectory) == 4
 
-    return bundle
+    # FAIL no includedirs
+    fail_data = form_data.copy()
+    for key in fail_data:
+        if "include" in key:
+            fail_data[key] = ""
+
+    response = client.post("/bundles/form/create", data=fail_data)
+    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.process_bundle_form.FAILURE"
 
 
 def test_get(client, logged_in, bundle):
@@ -56,8 +47,9 @@ def test_get(client, logged_in, bundle):
     response = client.get("/bundles/form/create")
     assert response.status_code == 200
 
+    bundle_instance, _ = bundle
     # SUCCESS bundle_form update
-    response = client.get(f"/bundles/form/update/{bundle.id}")
+    response = client.get(f"/bundles/form/update/{bundle_instance.id}")
     assert response.headers["BORGDRONE_RETURN"] == "BundleManager.get_one.SUCCESS"
     assert response.status_code == 200
 
@@ -67,7 +59,7 @@ def test_get(client, logged_in, bundle):
     assert response.status_code == 200
 
     # SUCCESS run_backup
-    response = client.get(f"/bundles/{bundle.id}/run")
+    response = client.get(f"/bundles/{bundle_instance.id}/run")
     assert response.headers["BORGDRONE_RETURN"] == "BundleManager.get_one.SUCCESS"
     assert response.status_code == 200
 
@@ -77,52 +69,28 @@ def test_get(client, logged_in, bundle):
     assert response.status_code == 200
 
 
-def test_check_dir(client):
-    # SUCCESS
-    response = client.post("/bundles/check-dir/exclude", data={"exclude_path": INSTANCE_PATH})
-    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.check_dir.SUCCESS"
+def test_bundle_update(client, bundle):
+    bundle_instance, form_data = bundle
 
-    # FAIL
-    response = client.post("/bundles/check-dir/include", data={"include_path": "/doesnotexist"})
-    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.check_dir.FAILURE"
+    form_data["comment"] = "updated comment"
 
-
-def test_bundle_create_fail(client, repository):
-    # FAIL no includedirs
-    sub_dir = new_instance_subdir()
-    dir_data = bundle_dir_data(client, sub_dir)
-    dir_data["repo_db_id"] = repository.id
-    del dir_data["includedir"]
-
-    response = client.post("/bundles/form/create", data=dir_data)
-    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.create_bundle.FAILURE"
-
-
-def test_bundle_update(client, repository):
-    sub_dir = new_instance_subdir()
-    dir_data = bundle_dir_data(client, sub_dir)
-
-    # SUCCESS
-    dir_data["repo_db_id"] = repository.id
-    response = client.post("/bundles/form/create", data=dir_data)
-    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.create_bundle.SUCCESS"
-
-    result_log = bundle_manager.get_latest()
-    bundle = result_log.get_data()
-    assert bundle
-
-    dir_data["comment"] = "updated comment"
-
-    response = client.post(f"/bundles/form/update/{bundle.id}", data=dir_data)
-    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.update_bundle.SUCCESS"
+    response = client.post(f"/bundles/form/update/{bundle_instance.id}", data=form_data)
+    assert response.headers["BORGDRONE_RETURN"] == "BundleManager.process_bundle_form.SUCCESS"
     assert response.status_code == 200
 
 
 def test_bundle_delete(client, bundle):
+    bundle_instance, _ = bundle
     # SUCCESS delete_bundle
-    response = client.delete(f"/bundles/delete/{bundle.id}")
+    response = client.delete(f"/bundles/delete/{bundle_instance.id}")
     assert response.headers["BORGDRONE_RETURN"] == "BundleManager.delete_bundle.SUCCESS"
 
     # FAIL delete_bundle | does not exist
     response = client.delete("/bundles/delete/0")
     assert response.headers["BORGDRONE_RETURN"] == "BundleManager.delete_bundle.FAILURE"
+
+
+def test_create_backup(client, bundle):
+    bundle_instance, _ = bundle
+    result_log = bundle_manager.create_backup(bundle_instance.id)
+    assert result_log.status == "SUCCESS"

@@ -119,7 +119,7 @@ def get_repository_info(path: str) -> BorgdroneEvent[Repository]:
     _log = BorgdroneEvent[Repository]()
     _log.event = "RepositoryManager.get_repository_info"
 
-    info_result_log = borg_runner.repository_info(path)
+    info_result_log = borg_runner.borg_info(path)
     if info_result_log.status == "FAILURE":
         # we want to pass the error code and message
         # to the user and for BORG_RETURN
