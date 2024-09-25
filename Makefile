@@ -16,6 +16,7 @@ clean:
 	rm -rf .venv
 
 run:
+	export PYTESTING=False
 	poetry run flask --app borgdrone run
 
 cleanrun:
@@ -23,7 +24,7 @@ cleanrun:
 	make install
 	make run
 
-test-all:
+test:
 	clear
 	poetry run pytest
 
