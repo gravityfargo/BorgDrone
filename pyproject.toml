@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "borgdrone"
-version = "0.0.1"
+version = "0.0.0-post.62+52da5e6"
 description = "Advanced web interface for BorgBackup"
 authors = ["Nathan Price <gravityfargo@gmail.com>"]
 license = "BSD-4-Clause"
@@ -16,15 +16,15 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.12"
-0flask = "^0.0.1"
 python-dotenv = "^1.0.1"
 Flask-SQLAlchemy = "^3.1.1"
 Flask-Login = "^0.6.3"
 Flask-SocketIO = "^5.3.7"
 Flask-Migrate = "^4.0.7"
 cron-descriptor = "^1.4.5"
-poetry-dynamic-versioning = "^1.4.1"
+poetry-dynamic-versioning = { extras = ["plugin"], version = "^1.4.1" }
 pyyaml = "^6.0.2"
+flask = "^3.0.3"
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^3.2.7"
@@ -49,9 +49,9 @@ style = "semver"
 [tool.poetry-dynamic-versioning.files."borgdrone/_version.py"]
 persistent-substitution = true
 initial-content = """
-# These version placeholders will be replaced later during substitution.
-__version__ = "0.0.0"
-__version_tuple__ = (0, 0, 0)
+  # These version placeholders will be replaced later during substitution.
+  __version__ = "0.0.0"
+  __version_tuple__ = (0, 0, 0)
 """
 
 [tool.pylint.main]
