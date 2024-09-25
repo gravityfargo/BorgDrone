@@ -103,7 +103,7 @@ def bundle_form(purpose: str, bundle_id: OptInt) -> Any:
 
     # Fetch repositories to populate the form
     repos = repository_manager.get_all()
-    if repos is None:
+    if not repos:
         rh.toast_error = "No repositories found."
         return rh.respond(error=True)
 

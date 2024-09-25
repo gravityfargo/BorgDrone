@@ -82,6 +82,9 @@ def test_create_bundle(client, repository):
     assert database.count(BackupBundle) == 0
     assert database.count(BackupDirectory) == 0
 
+    result = bundle_manager.process_bundle_form(purpose="invalid")
+    assert result.status == "FAILURE"
+
 
 def test_bundle_update(client, bundle):
     bundle_instance, form_data = bundle
