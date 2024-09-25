@@ -96,12 +96,17 @@ def bundle_form(purpose: str, bundle_id: OptInt) -> Any:
     # Helper object for handling response rendering
     rh = ResponseHelper(
         get_template="bundles/bundle_form.html",
+        get_error_template="bundles/index.html",
         post_success_template="bundles/index.html",
         post_error_template="bundles/bundle_form.html",
     )
 
     # Fetch repositories to populate the form
     repos = repository_manager.get_all()
+    if repos is None:
+        rh.toast_error = "No repositories found."
+        return rh.respond(error=True)
+
     rh.context_data = {"repos": repos, "form_purpose": purpose}
 
     if request.method == "POST":
