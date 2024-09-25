@@ -34,6 +34,7 @@ class ResponseHelper:
 
     def __init__(self, **kwargs: Any):
         self.get_template: str = kwargs.get("get_template", "")
+        self.get_error_template: str = kwargs.get("get_error_template", "")
         self.post_success_template: str = kwargs.get("post_success_template", "")
         self.post_error_template: str = kwargs.get("post_error_template", "")
 
@@ -70,7 +71,10 @@ class ResponseHelper:
         else:
             match self.request_method:
                 case "GET":
-                    template = self.get_template
+                    if error:
+                        template = self.get_error_template
+                    else:
+                        template = self.get_template
 
                     if self.hx_request:
                         response = self.respond_template(template)
