@@ -4,7 +4,7 @@ from borgdrone.extensions import db
 from borgdrone.logging import BorgdroneEvent
 from borgdrone.types import OptBool, OptInt, OptStr
 
-from .models import BackupBundle, BackupDirectory, OptBackupBundle, OptBackupDirectory
+from .models import BackupBundle, BackupDirectory, OptBackupDirectory
 
 
 def get_one(bundledirectory_id: OptInt = None, path: OptStr = None) -> BorgdroneEvent[OptBackupDirectory]:
