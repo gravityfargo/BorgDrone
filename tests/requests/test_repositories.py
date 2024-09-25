@@ -1,24 +1,18 @@
+# pylint: disable=W0611
 from borgdrone.borg import BorgRunner as borg_runner
 
 from ..conftest import ctx_repo, new_instance_subdir
 
 
 def test_get(client):
-    # FAIL no repositories exist
     response = client.get("/repositories/")
     assert response.status_code == 200
-    assert response.headers["BORGDRONE_RETURN"] == "RepositoryManager.get_all.FAILURE"
 
-    # OK GET
     response = client.get("/repositories/import")
     assert response.status_code == 200
 
-
-def test_index_success(client, repository):
     response = client.get("/repositories/")
     assert response.status_code == 200
-    # SUCCESS a repository exists
-    assert response.headers["BORGDRONE_RETURN"] == "RepositoryManager.get_all.SUCCESS"
 
 
 def test_create_repo_get(client):

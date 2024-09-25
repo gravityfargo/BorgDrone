@@ -1,3 +1,5 @@
+from typing import Optional
+
 from flask_login import current_user
 from sqlalchemy import select
 
@@ -8,13 +10,10 @@ from borgdrone.logging import BorgdroneEvent
 from borgdrone.logging import logger as log
 from borgdrone.types import OptInt, OptStr
 
-from .models import OptListRepository, OptRepository, Repository
+from .models import ListRepository, OptRepository, Repository
 
 
-def get_one(db_id: OptInt = None, repo_id: OptStr = None, path: OptStr = None) -> BorgdroneEvent[OptRepository]:
-    _log = BorgdroneEvent[OptRepository]()
-    _log.event = "RepositoryManager.get_one"
-
+def get_one(db_id: OptInt = None, repo_id: OptStr = None, path: OptStr = None) -> OptRepository:
     if db_id is not None:
         stmt = select(Repository).where(Repository.id == db_id)
         instance = db.session.scalars(stmt).first()
@@ -31,34 +30,15 @@ def get_one(db_id: OptInt = None, repo_id: OptStr = None, path: OptStr = None) -
         stmt = select(Repository).where(Repository.user_id == current_user.id)
         instance = db.session.scalars(stmt).first()
 
-    _log.set_data(instance)
-    if not instance:
-        _log.status = "FAILURE"
-        _log.error_message = "Repository not found."
-    else:
-        _log.status = "SUCCESS"
-        _log.message = "Repository Retrieved."
-
-    return _log
+    return instance
 
 
-def get_all() -> BorgdroneEvent[OptListRepository]:
-    _log = BorgdroneEvent[OptListRepository]()
-    _log.event = "RepositoryManager.get_all"
-
+def get_all() -> Optional[ListRepository]:
     instances = None
     stmt = select(Repository).where(Repository.user_id == current_user.id)
     instances = list(db.session.scalars(stmt).all())
 
-    _log.set_data(instances)
-    if not instances:
-        _log.status = "FAILURE"
-        _log.error_message = "Repositories not found."
-    else:
-        _log.status = "SUCCESS"
-        _log.message = f"All of {current_user.username}'s repositories retrieved."
-
-    return _log
+    return instances
 
 
 def get_latest() -> BorgdroneEvent[OptRepository]:
@@ -165,8 +145,8 @@ def delete_repo(db_id: int) -> BorgdroneEvent[None]:
     _log.event = "RepositoryManager.delete_repo"
 
     # get the repository
-    result_log = get_one(db_id=db_id)
-    if not (instance := result_log.data):
+    instance = get_one(db_id=db_id)
+    if not instance:
         return _log.not_found_message("Repository")
 
     instance.delete()
@@ -184,11 +164,9 @@ def update_repository_info(db_id: OptInt = None, path: OptStr = None) -> Borgdro
     _log = BorgdroneEvent[None]()
     _log.event = "RepositoryManager.update_repository_info"
 
-    result_log = get_one(db_id=db_id, path=path)
-    if not result_log.data:
+    instance = get_one(db_id=db_id, path=path)
+    if not instance:
         return _log.not_found_message("Repository")
-
-    instance = result_log.data
 
     result_log = get_repository_info(instance.path)
     if result_log.status == "FAILURE":
@@ -222,7 +200,7 @@ def import_repo(path: str) -> BorgdroneEvent[Repository]:
     _log.event = "RepositoryManager.import_repo"
 
     instance = get_one(path=path)
-    if instance.data:
+    if instance:
         error_message = "Repo exists in the database already. Cannot import."
         return _log.return_failure(error_message)
 

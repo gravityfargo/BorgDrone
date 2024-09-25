@@ -14,11 +14,11 @@ repositories_blueprint = Blueprint("repositories", __name__, template_folder="te
 @login_required
 def index():
     rh = ResponseHelper(get_template="repositories/index.html")
+    rh.context_data = {"repos": [], "convert_bytes": datahelpers.convert_bytes}
+    repos = repository_manager.get_all()
+    if repos:
+        rh.context_data["repos"] = repos
 
-    result_log = repository_manager.get_all()
-
-    rh.context_data = {"repos": result_log.data, "convert_bytes": datahelpers.convert_bytes}
-    rh.borgdrone_return = result_log.borgdrone_return()
     return rh.respond()
 
 
@@ -34,6 +34,7 @@ def create_repo() -> Any:
 
     if request.method == "POST":
         form_data = request.form
+        rh.context_data = {"repos": [], "convert_bytes": datahelpers.convert_bytes}
 
         result_log = repository_manager.create_repo(form_data["path"], form_data["encryption"])
         rh.borgdrone_return = result_log.borgdrone_return()
@@ -43,7 +44,9 @@ def create_repo() -> Any:
             return rh.respond(error=True)
 
         repos = repository_manager.get_all()
-        rh.context_data = {"repos": repos.data, "convert_bytes": datahelpers.convert_bytes}
+        if repos:
+            rh.context_data["repos"] = repos
+
         rh.toast_success = result_log.message
         return rh.respond()
 

@@ -7,7 +7,6 @@ from borgdrone.extensions import db
 
 ListRepository = list["Repository"]
 OptRepository = Optional["Repository"]
-OptListRepository = Optional[ListRepository]
 
 
 class Repository(db.Model):
