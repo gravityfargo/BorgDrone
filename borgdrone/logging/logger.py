@@ -1,6 +1,9 @@
 from logging import getLogger
+from typing import Optional
 
 from flask import current_app as app
+
+from .config import COLOR
 
 
 def success(message: str) -> None:
@@ -27,7 +30,7 @@ def error_event(message: str) -> None:
     app.logger.error(message, stacklevel=3)
 
 
-def debug(message: str) -> None:
+def debug(message: str, color: Optional[str] = None) -> None:
     """proxies app.logger.debug
 
     If the environment variable PYTESTING is set to True, the message will not be logged.
@@ -35,6 +38,10 @@ def debug(message: str) -> None:
     # An additional stacklevel is needed so log.error will show the caller of this module
     if app.config.get("PYTESTING", False):
         return
+    if color:
+        if COLOR.get(color):
+            message = f"{COLOR[color]}{message}{COLOR['off']}"
+
     app.logger.debug(message, stacklevel=2)
 
 

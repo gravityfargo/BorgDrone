@@ -17,13 +17,15 @@ from typing import List, Union
 from flask import current_app as app
 from flask.logging import default_handler
 
-# Color constants
-Color_Off = "\033[0m"
-Red = "\033[0;31m"
-Green = "\033[0;32m"
-Yellow = "\033[0;33m"
-Cyan = "\033[0;36m"
-Purple = "\033[0;35m"
+# Color codes for the console
+COLOR = {
+    "off": "\033[0m",
+    "red": "\033[0;31m",
+    "green": "\033[0;32m",
+    "yellow": "\033[0;33m",
+    "cyan": "\033[0;36m",
+    "purple": "\033[0;35m",
+}
 
 
 class InfoOnlyFilter(Filter):
@@ -119,10 +121,10 @@ def configure_logging() -> None:
         "version": 1,
         "disable_existing_loggers": False,
         "formatters": {
-            "info": {"format": f"{Green}[%(levelname)-s]{Color_Off} %(message)s"},
-            "warning": {"format": f"{Yellow}[%(levelname)-s]{Color_Off} %(message)s"},
-            "error": {"format": f"{Red}[%(levelname)-s]{Color_Off} %(message)s"},
-            "debug": {"format": f"{Purple}[%(levelname)-s]{Color_Off} %(message)s"},
+            "info": {"format": f"{COLOR['green']}[%(levelname)-s]{COLOR['off']} %(message)s"},
+            "warning": {"format": f"{COLOR['yellow']}[%(levelname)-s]{COLOR['off']} %(message)s"},
+            "error": {"format": f"{COLOR['red']}[%(levelname)-s]{COLOR['off']} %(message)s"},
+            "debug": {"format": f"{COLOR['purple']}[%(levelname)-s]{COLOR['off']} %(message)s"},
             "default": {
                 "format": "[%(asctime)s] %(levelname)-8s: %(message)s",
                 "datefmt": "%Y-%m-%d %H:%M:%S",
