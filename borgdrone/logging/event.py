@@ -69,46 +69,42 @@ class BorgdroneEvent(Generic[T]):
         log.error_event(self.error_message)
         return self
 
-    def return_success(self, success_message: str) -> "BorgdroneEvent":
-        """Helper function
-
-        Set the status to SUCCESS and the message to the given message
-        logs the message and returns the instance
-
-        Arguments:
-            success_message -- Success message
-
-        Returns:
-            self
-        """
+    def return_success(self, success_message: Optional[str] = None, debug: bool = False) -> "BorgdroneEvent":
         self.status = "SUCCESS"
-        self.message = success_message
+
+        if success_message:
+            self.message = success_message
 
         if not self.event:
             self.event = "BorgdroneEvent.success_message"
 
-        log.success_event(self.message)
+        if debug:
+            log.debug_event(self.message, "green")
+        else:
+            log.success_event(self.message)
+
         return self
 
-    def return_failure(self, error_message: str) -> "BorgdroneEvent":
-        """Helper function
-
-        Set the status to FAILURE and the message to the given message
-        logs the message and returns the instance
-
-        Do not use for BorgRunner errors, those should be passed to the user directly.
-
-        Arguments:
-            error_message -- Failure message
-
-        Returns:
-            self
-        """
+    def return_failure(self, error_message: Optional[str] = None, debug: bool = False) -> "BorgdroneEvent":
         self.status = "FAILURE"
-        self.error_message = error_message
+
+        if error_message:
+            self.error_message = error_message
 
         if not self.event:
             self.event = "BorgdroneEvent.failure_message"
 
-        log.error_event(self.error_message)
+        if debug:
+            log.debug_event(self.error_message, "red")
+        else:
+            log.error_event(self.error_message)
+
+        return self
+
+    def return_debug_success(self, success_message: Optional[str] = None) -> "BorgdroneEvent":
+        self.return_success(success_message, debug=True)
+        return self
+
+    def return_debug_failure(self, error_message: Optional[str] = None) -> "BorgdroneEvent":
+        self.return_failure(error_message, debug=True)
         return self
