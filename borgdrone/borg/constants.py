@@ -17,7 +17,9 @@ BORG_DELETE_COMMAND = [
 ]
 
 BORG_CREATE_COMMAND = [
-    "borg create --list --stats --progress --one-file-system",
+    "borg",
+    "create",
+    "--list --stats --progress --one-file-system",
 ]
 # --exclude /dir/to/exclude
 # PATH::NAME_FORMAT
@@ -26,5 +28,5 @@ BORG_CREATE_COMMAND = [
 BORG_LIST_COMMAND = [
     "borg --log-json list --json",
     "PATH",
-    "--format '{archive}{name}{comment}{id}{tam}{start}{time}{end}{command_line}{hostname}{username}'",
+    "--format '{archive}{name}{id}{tam}{start}{time}{end}{command_line}{hostname}{username}'",
 ]
