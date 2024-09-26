@@ -47,7 +47,7 @@ class BackupBundle(db.Model):
     last_backup: Mapped[str] = mapped_column(default="Never")
 
     # Archive options
-    comment: Mapped[Optional[str]]
+    name_format: Mapped[Optional[str]]
     command_line: Mapped[Optional[str]]
 
     def commit(self):

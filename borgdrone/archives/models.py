@@ -19,7 +19,6 @@ class Archive(db.Model):
     backupbundle = relationship("BackupBundle", back_populates="archives")
 
     name: Mapped[str]
-    comment: Mapped[str]
     end: Mapped[str]
     hostname: Mapped[str]
     start: Mapped[str]
@@ -40,7 +39,14 @@ class Archive(db.Model):
         db.session.commit()
 
     def update_from_dict(self, data: dict) -> "Archive":
-        """Expects raw output from `borg list --json`"""
+        """
+        Expects output from BorgRunner.__parse_archive_info
+
+        """
         for key, value in data.items():
             setattr(self, key, value)
         return self
+
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
