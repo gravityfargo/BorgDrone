@@ -68,5 +68,13 @@ def test_import_archives(client: FlaskClient):
     assert database.count(BackupBundle) == 4
     assert database.count(BackupDirectory) == 4
 
+    # cleanup the new bundles
+    for i in range(3):
+        bundle = database.get_latest(BackupBundle)
+        assert bundle
+        bundle.delete()
+
+    assert database.count(BackupBundle) == 1
+
 
 # archives_manager.
