@@ -22,3 +22,4 @@ build/
 .pytest_cache/
 coverage.xml
 .coverage
+output_file.txt
