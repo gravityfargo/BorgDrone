@@ -6,43 +6,21 @@ from flask import current_app as app
 from .config import COLOR
 
 
-def success(message: Any) -> None:
-    """proxies app.logger.info"""
-    # An additional stacklevel is needed so log.error will show the caller of this module
+def success(message: Any, color: Optional[str] = None) -> None:
+    """proxies app.logger.info
+
+    colors: `red`, `green`, `yellow`, `cyan`, `purple`
+    """
+    if color:
+        if COLOR.get(color):
+            message = f"{COLOR[color]}{message}{COLOR['off']}"
+
     app.logger.info(message, stacklevel=2)
 
 
 def error(message: Any) -> None:
     """proxies app.logger.error"""
-    # An additional stacklevel is needed so log.error will show the caller of this module
     app.logger.error(message, stacklevel=2)
-
-
-def success_event(message: Any) -> None:
-    """
-    The BorgdroneEvent helper methods requre an additional stacklevel
-    """
-    app.logger.info(message, stacklevel=3)
-
-
-def error_event(message: Any) -> None:
-    """The BorgdroneEvent helper methods requre an additional stacklevel"""
-    app.logger.error(message, stacklevel=3)
-
-
-def debug(message: Any, color: Optional[str] = None) -> None:
-    """proxies app.logger.debug
-
-    If the environment variable PYTESTING is set to True, the message will not be logged.
-    """
-    # An additional stacklevel is needed so log.error will show the caller of this module
-    if app.config.get("PYTESTING", False):
-        return
-    if color:
-        if COLOR.get(color):
-            message = f"{COLOR[color]}{message}{COLOR['off']}"
-
-    app.logger.debug(message, stacklevel=2)
 
 
 def warning(message: Any) -> None:
@@ -63,6 +41,34 @@ def exception(message: Any) -> None:
     app.logger.exception(message, stacklevel=2)
 
 
+def debug(message: Any, color: Optional[str] = None) -> None:
+    """proxies app.logger.debug
+
+    colors: `red`, `green`, `yellow`, `cyan`, `purple`
+    """
+    if color:
+        if COLOR.get(color):
+            message = f"{COLOR[color]}{message}{COLOR['off']}"
+
+    app.logger.debug(message, stacklevel=2)
+
+
+def success_event(message: Any) -> None:
+    app.logger.info(message, stacklevel=3)
+
+
+def error_event(message: Any) -> None:
+    app.logger.error(message, stacklevel=3)
+
+
+def debug_event(message: Any, color: Optional[str] = None) -> None:
+    if color:
+        if COLOR.get(color):
+            message = f"{COLOR[color]}{message}{COLOR['off']}"
+
+    app.logger.debug(message, stacklevel=4)
+
+
 def borg_log(message: Any) -> None:
     """Logger for borg messages
 
@@ -70,7 +76,7 @@ def borg_log(message: Any) -> None:
 
     If the environment variable PYTESTING is set to True, the message will not be logged.
     """
-    if app.config.get("PYTESTING", False):
+    if app.config["PYTESTING"] == "True":
         return
 
     borgcreate_logger = getLogger("borg")
@@ -80,7 +86,7 @@ def borg_log(message: Any) -> None:
 def borg_temp_log(message: Any) -> None:
     """proxies app.logger.error"""
     # An additional stacklevel is needed so log.error will show the caller of this module
-    if app.config.get("PYTESTING", False):
+    if app.config["PYTESTING"] == "True":
         return
 
     borg_logger = getLogger("borg")
