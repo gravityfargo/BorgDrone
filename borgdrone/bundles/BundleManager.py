@@ -53,7 +53,8 @@ def _set_bundle_values(bundle: BackupBundle, **kwargs) -> BackupBundle:
     bundle.cron_day = kwargs["cron_day"]
     bundle.cron_month = kwargs["cron_month"]
     bundle.cron_weekday = kwargs["cron_weekday"]
-    bundle.comment = kwargs.get("comment", None)
+    bundle.name_format = kwargs.get("name_format", None)
+    bundle.command_line = kwargs.get("command_line", None)
     return bundle
 
 
@@ -90,13 +91,37 @@ def __process_directories(bundle, form_data: Dict[str, Any]) -> Optional[Dict[st
     return data
 
 
-def __form_new_command(repo_path, name_format, exclude_dirs_paths, include_dirs_paths):
+def parse_bundle_create_command(
+    repo_path: str, name_format: str, exclude_dirs_paths: List[str], include_dirs_paths: List[str]
+):
     backup_command = BORG_CREATE_COMMAND.copy()
     backup_command.extend(exclude_dirs_paths)
     backup_command.append(f"{repo_path}::{name_format}")
     backup_command.extend(include_dirs_paths)
     command_line = " ".join(backup_command)
     return command_line
+
+
+def create_bundle_from_command(repository: Repository, bundle_data: Dict[str, Any]) -> BorgdroneEvent[BackupBundle]:
+    _log = BorgdroneEvent[BackupBundle]()
+    _log.event = "BundleManager.create_bundle_from_command"
+
+    base_data = {
+        "repo_db_id": repository.id,
+        "cron_minute": "*",
+        "cron_hour": "*",
+        "cron_day": "*",
+        "cron_month": "*",
+        "cron_weekday": "*",
+    }
+    bundle_data.update(base_data)
+
+    bundle = _set_bundle_values(BackupBundle(), **bundle_data)
+    repository.backupbundles.append(bundle)
+    bundle.commit()
+
+    _log.set_data(bundle)
+    return _log.return_success("Bundle created successfully.")
 
 
 def process_bundle_form(purpose: str, **kwargs) -> BorgdroneEvent[OptBackupBundle]:
@@ -112,6 +137,7 @@ def process_bundle_form(purpose: str, **kwargs) -> BorgdroneEvent[OptBackupBundl
         bundle = get_one(bundle_id=bundle_id)
         if not bundle:
             return _log.not_found_message("Bundle")
+
     else:
         return _log.return_failure("Invalid purpose.")
 
@@ -132,56 +158,15 @@ def process_bundle_form(purpose: str, **kwargs) -> BorgdroneEvent[OptBackupBundl
         bundle.delete()
         return _log.return_failure("You must include at least one include directory.")
 
-    backup_command = __form_new_command(
+    backup_command = parse_bundle_create_command(
         bundle.repo.path, bundle.repo.name_format, data["exclude_dirs_paths"], data["include_dirs_paths"]
     )
+
     bundle.command_line = backup_command
     bundle.update()
 
     _log.set_data(bundle)
     return _log.return_success("Bundle created successfully.")
-
-
-def __process_command(command_line: str) -> Optional[Dict[str, Any]]:
-    exclude_dirs_paths = []
-    include_dirs_paths = []
-    repo_path = ""
-    name_format = ""
-
-    if "create" not in command_line:
-        return None
-
-    command = command_line.split("create")
-
-    part1 = command[0].split(" ")
-    if part1[0] != "borg":
-        return None
-
-    part2 = command[1].split(" ")
-
-    pos = 0
-    for i, part in enumerate(part2):
-        if not pos:
-            if part == "--exclude":
-                exclude_dirs_paths.append(part2[i + 1])
-                continue
-
-            if "::" in part:
-                j = part.split("::")
-                repo_path = j[0]
-                name_format = j[1]
-                pos = 1
-                continue
-        else:
-            include_dirs_paths.append(part)
-            continue
-
-    return {
-        "repo_path": repo_path,
-        "name_format": name_format,
-        "exclude_dirs_paths": exclude_dirs_paths,
-        "include_dirs_paths": include_dirs_paths,
-    }
 
 
 def delete_bundle(bundle_id: int) -> BorgdroneEvent[None]:
@@ -230,18 +215,20 @@ def create_backup(bundle_id: int) -> BorgdroneEvent[None]:
     if not bundle.command_line:
         return _log.return_failure("Bundle has no command line set.")
 
-    emit_socket = True
     if app.config["PYTESTING"] == "True":
-        emit_socket = False
+        # The command needs to be blocking during testing
+        result = bash.run(bundle.command_line)
+        if result.get("stderr"):
+            logger.debug(bundle.command_line, "red")
+            return _log.return_failure(result["stderr"])
 
-    bash.popen(bundle.command_line, emit_socket)
-    # TODO: Add a check for the return code of the borg command
-    # i.e OSError: [Errno 28] No space left on device
+    else:
+        bash.popen(bundle.command_line, True)
+        # TODO: error checking
 
     # Add the new archive to the database
     result_log = borg_runner.get_last_archive(bundle.repo.path)
     if not (archive_data := result_log.get_data()):
-        logger.error(bundle.command_line)
         return _log.return_failure("Error getting archive data.")
 
     archive = Archive().update_from_dict(archive_data)
