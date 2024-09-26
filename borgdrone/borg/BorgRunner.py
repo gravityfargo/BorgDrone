@@ -91,23 +91,49 @@ def borg_info(path: str, archive_name: OptStr = None, first: int = 0, last: int 
     return _log
 
 
-def delete_repository(path: str) -> BorgdroneEvent[None]:
+def borg_delete(path: str, archive_name: OptStr = None):
     _log = BorgdroneEvent[None]()
-    _log.event = "BorgRunner.delete_repository"
+    _log.event = "BorgRunner.borg_delete"
     _log.status = "SUCCESS"
 
     command = BORG_DELETE_COMMAND.copy()
-    command[1] = path
-
-    _log.message = " ".join(command)
+    if archive_name:
+        command[1] = f"{path}::{archive_name}"
+    else:
+        command[1] = path
 
     result = bash.run(command)
     if "stderr" in result:
         # Possible:
-        # - Repository.DoesNotExist
+        # - ?
         __process_error(_log, result["stderr"])
 
+    if archive_name:
+        result = borg_compact(path)
+        if "stderr" in result:
+            # Possible:
+            # - ?
+            __process_error(_log, result["stderr"])
+
     return _log
+
+
+def delete_repository(path: str) -> BorgdroneEvent[None]:
+    event = "BorgRunner.delete_repository"
+
+    result_log = borg_delete(path)
+    result_log.event = event
+
+    return result_log
+
+
+def delete_archive(path: str, archive_name: str) -> BorgdroneEvent[None]:
+    event = "BorgRunner.delete_archive"
+
+    result_log = borg_delete(path, archive_name)
+    result_log.event = event
+
+    return result_log
 
 
 def list_archives(repo_path: str, first: int = 0, last: int = 0) -> BorgdroneEvent[List[Dict[str, Any]]]:
