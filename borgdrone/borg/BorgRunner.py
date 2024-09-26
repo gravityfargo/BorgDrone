@@ -135,7 +135,7 @@ def list_archives(repo_path: str, first: int = 0, last: int = 0) -> BorgdroneEve
     return _log
 
 
-def __parse_archive_info(archive_data: dict) -> Optional[Dict[str, Any]]:
+def __parse_archive_info(raw_data: dict) -> List[Dict[str, Any]]:
     """Parse the archive data.
 
     Arguments:
@@ -145,32 +145,39 @@ def __parse_archive_info(archive_data: dict) -> Optional[Dict[str, Any]]:
         None -- If the archive data is empty.
         Dict[str, Any] -- Archive data in Archive() model as a dict.
     """
-    if not archive_data["archives"]:
-        return None
+    archives = []
+    if not raw_data["archives"]:
+        return archives
 
-    info = archive_data["archives"][0]
-    repo = archive_data["repository"]
-    stats = info["stats"]
+    repo_id = raw_data["repository"]["id"]
 
-    return_data = {}
-    return_data["archive_id"] = info["id"]
-    return_data["command_line"] = " ".join(info["command_line"])
-    return_data["comment"] = info["comment"]
-    return_data["duration"] = info["duration"]
-    return_data["end"] = info["end"]
-    return_data["hostname"] = info["hostname"]
-    return_data["name"] = info["name"]
-    return_data["start"] = info["start"]
-    return_data["tam"] = info.get("tam")
-    return_data["time"] = info.get("time")
-    return_data["username"] = info["username"]
-    return_data["stats_compressed_size"] = stats["compressed_size"]
-    return_data["stats_deduplicated_size"] = stats["deduplicated_size"]
-    return_data["stats_nfiles"] = stats["nfiles"]
-    return_data["stats_original_size"] = stats["original_size"]
-    return_data["repository_id"] = repo["id"]
+    for archive in raw_data["archives"]:
+        info = archive
+        stats = info.get("stats")
 
-    return return_data
+        return_data = {}
+
+        return_data["archive_id"] = info["id"]
+        return_data["repository_id"] = repo_id
+        return_data["command_line"] = " ".join(info["command_line"])
+        return_data["duration"] = info.get("duration")
+        return_data["end"] = info["end"]
+        return_data["hostname"] = info["hostname"]
+        return_data["name"] = info["name"]
+        return_data["start"] = info["start"]
+        return_data["tam"] = info.get("tam")
+        return_data["time"] = info.get("time")
+        return_data["username"] = info["username"]
+
+        if stats:
+            return_data["stats_compressed_size"] = stats["compressed_size"]
+            return_data["stats_deduplicated_size"] = stats["deduplicated_size"]
+            return_data["stats_nfiles"] = stats["nfiles"]
+            return_data["stats_original_size"] = stats["original_size"]
+
+        archives.append(return_data)
+
+    return archives
 
 
 def archive_info(repo_path: str, archive_name: str) -> BorgdroneEvent[Dict[str, Any]]:
