@@ -1,7 +1,8 @@
 from typing import Any
 
+from flask import Response
+from flask import current_app as app
 from flask import (
-    Response,
     flash,
     make_response,
     redirect,
@@ -113,7 +114,8 @@ class ResponseHelper:
             endpoint = f"{self.endpoint} ({hx})"
         message = f"[ {self.request_method} :: {endpoint:<20} ]"
 
-        log.debug(message)
+        if app.config["PYTESTING"] == "False":
+            log.debug(message)
 
     def __toast(self) -> None:
         if self.toast_success:
