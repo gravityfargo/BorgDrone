@@ -1,4 +1,5 @@
 import subprocess
+from threading import Thread
 
 from flask import copy_current_request_context
 from flask_socketio import emit
@@ -7,7 +8,6 @@ from borgdrone.extensions import socketio
 from borgdrone.logging import logger
 
 
-# flake8: noqa
 def popen(command: str | list, emit_socket: bool = False):
     if isinstance(command, str):
         cmd = command.split(" ")
@@ -15,6 +15,7 @@ def popen(command: str | list, emit_socket: bool = False):
         # The list constants contain list items with aguments that need to be separated
         command = " ".join(command)
         cmd = command.split(" ")
+    logger.debug(cmd, "yellow")
 
     @copy_current_request_context  # Ensures Flask context is copied to the new thread
     def run_command():
@@ -47,14 +48,14 @@ def popen(command: str | list, emit_socket: bool = False):
                     continue
 
                 if output == "" and process.poll() is not None:
-                    # log_output("Command finished")
                     break
 
     if emit_socket:
         # Running the command in a new thread to allow Flask to continue processing other events
         socketio.start_background_task(run_command)
     else:
-        run_command()
+        thread = Thread(target=run_command)
+        thread.start()
 
 
 def run(command: str | list, capture_output=True, text_mode=True):
