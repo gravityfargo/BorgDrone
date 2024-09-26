@@ -10,14 +10,13 @@ from flask_login import LoginManager, current_user
 
 from borgdrone import create_app
 from borgdrone.archives import Archive
+from borgdrone.archives import ArchivesManager as archives_manager
 from borgdrone.auth import Users
-from borgdrone.borg import BorgRunner as borg_runner
 from borgdrone.bundles import BackupBundle, BackupDirectory
 from borgdrone.bundles import BundleManager as bundle_manager
 from borgdrone.helpers import database, filemanager
 from borgdrone.logging import logger
 from borgdrone.repositories import Repository
-from borgdrone.repositories import RepositoryManager as repository_manager
 
 INSTANCE_PATH = "/tmp/borgdrone_pytest"
 
@@ -67,12 +66,19 @@ from flask import current_app as app
 
 @pytest.fixture(scope="session")
 def app():
+
     os.environ["INSTANCE_PATH"] = INSTANCE_PATH
     os.environ["PYTESTING"] = "True"
 
     ctx_app = create_app()
     for directory in [TEST_DATA_PATH] + INCLUDE_PATHS_1 + INCLUDE_PATHS_2 + EXCLUDE_PATHS_1 + EXCLUDE_PATHS_2:
+        # create the directory and add a 4kb file
         filemanager.check_dir(directory, create=True)
+        file_path = f"{directory}/4kb_test_data.txt"
+        size_in_kb = 4
+        data = os.urandom(size_in_kb * 1024)
+        with open(file_path, "wb") as file:
+            file.write(data)
 
     yield ctx_app
 
@@ -200,10 +206,20 @@ def ctx_bundle(client: FlaskClient, ctx_repository):
 
 
 @pytest.fixture(scope="function", name="archive")
-@pytest.mark.usefixtures("client")
-def ctx_archive(bundle):
-    bundle_instance, _ = bundle
-    archive_count = database.count(Archive)
-    result_log = BundleManager.create_backup(bundle_instance.id)
+def ctx_archive(client: FlaskClient, ctx_bundle):
+    bundle = database.get_latest(BackupBundle)
+    assert bundle
+
+    start_archive_count = database.count(Archive)
+
+    result_log = bundle_manager.create_backup(bundle.id)
     assert result_log.status == "SUCCESS"
-    assert database.count(Archive) == archive_count + 1
+    assert database.count(Archive) == start_archive_count + 1
+
+    archive = database.get_latest(Archive)
+    assert archive
+    yield archive
+
+    result_log = archives_manager.delete_archive(archive.name)
+    assert result_log.status == "SUCCESS"
+    assert database.count(Archive) == start_archive_count
