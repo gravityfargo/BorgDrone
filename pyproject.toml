@@ -90,9 +90,7 @@ multi_line_output = 3
 reportAttributeAccessIssue = false
 
 [tool.pytest.ini_options]
-log_cli_level = "INFO"
-log_cli = true
-addopts = "-ra -v  --color=auto --maxfail=1 --cov=borgdrone --cov-report=xml"
+addopts = "--cov=borgdrone --cov-report=xml --no-header --maxfail=1 --capture=no -rA"
 testpaths = ["tests"]
 # TODO: Remove this once flask_login is updated
 filterwarnings = "ignore::DeprecationWarning"
