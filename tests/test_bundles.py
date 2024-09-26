@@ -1,4 +1,3 @@
-# pylint: disable=W0611
 from flask.testing import FlaskClient
 
 from borgdrone.archives import Archive
