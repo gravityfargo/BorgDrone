@@ -91,6 +91,12 @@ def borg_info(path: str, archive_name: OptStr = None, first: int = 0, last: int 
     return _log
 
 
+def borg_compact(path: str) -> Dict[str, Any]:
+    command = f"borg compact {path}"
+    result = bash.run(command)
+    return result
+
+
 def borg_delete(path: str, archive_name: OptStr = None):
     _log = BorgdroneEvent[None]()
     _log.event = "BorgRunner.borg_delete"
@@ -154,9 +160,11 @@ def list_archives(repo_path: str, first: int = 0, last: int = 0) -> BorgdroneEve
         # Possible:
         # - Repository.DoesNotExist
         __process_error(_log, result["stderr"])
+
     else:
         data = json.loads(result["stdout"])
-        _log.set_data(data["archives"])
+        archives = __parse_archive_info(data)
+        _log.set_data(archives)
 
     return _log
 
@@ -222,7 +230,7 @@ def archive_info(repo_path: str, archive_name: str) -> BorgdroneEvent[Dict[str, 
         _log.error_message = "Failed to parse archive data."
         return _log
 
-    _log.set_data(data)
+    _log.set_data(data[0])
     return _log
 
 
@@ -238,22 +246,18 @@ def get_last_archive(repo_path: str) -> BorgdroneEvent[Optional[dict]]:
     """
     _log = BorgdroneEvent[Optional[Dict[str, Any]]]()
     _log.event = "BorgRunner.get_last_archive"
-    _log.status = "SUCCESS"
 
     result_log = borg_info(repo_path, last=1)
     if not (archive_data := result_log.get_data()):
-        _log.status = "FAILURE"
-        _log.error_message = result_log.error_message
-        return _log
+        return result_log.return_debug_failure()
 
     data = __parse_archive_info(archive_data)
     if not data:
-        _log.status = "FAILURE"
-        _log.error_message = "Failed to parse archive data."
-        return _log
+        # logger.debug(json.dumps(archive_data, indent=4))
+        return _log.return_debug_failure("No archives exist in the repository.")
 
-    _log.set_data(data)
-    return _log
+    _log.set_data(data[0])
+    return _log.return_debug_success("Archive data parsed.")
 
 
 def borg_check(repo_path: str, repository_only: bool = True) -> BorgdroneEvent[None]:
