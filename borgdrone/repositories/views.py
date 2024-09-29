@@ -14,10 +14,10 @@ repositories_blueprint = Blueprint("repositories", __name__, template_folder="te
 @login_required
 def index():
     rh = ResponseHelper(get_template="repositories/index.html")
-    rh.context_data = {"repos": [], "convert_bytes": datahelpers.convert_bytes}
+    rh.context_data = {"repositories": [], "convert_bytes": datahelpers.convert_bytes}
     repos = repository_manager.get_all()
     if repos:
-        rh.context_data["repos"] = repos
+        rh.context_data["repositories"] = repos
 
     return rh.respond()
 
@@ -25,16 +25,15 @@ def index():
 @repositories_blueprint.route("/create/", methods=["GET", "POST"])
 @login_required
 def create_repo() -> Any:
-    # TODO: Encryption
     rh = ResponseHelper(
         get_template="repositories/create.html",
         post_success_template="repositories/index.html",
         post_error_template="repositories/create.html",
-    )
+    )  # TODO: Encryption
 
     if request.method == "POST":
         form_data = request.form
-        rh.context_data = {"repos": [], "convert_bytes": datahelpers.convert_bytes}
+        rh.context_data = {"repositories": [], "convert_bytes": datahelpers.convert_bytes}
 
         result_log = repository_manager.create_repo(form_data["path"], form_data["encryption"])
         rh.borgdrone_return = result_log.borgdrone_return()
@@ -45,7 +44,7 @@ def create_repo() -> Any:
 
         repos = repository_manager.get_all()
         if repos:
-            rh.context_data["repos"] = repos
+            rh.context_data["repositories"] = repos
 
         rh.toast_success = result_log.message
         return rh.respond()
@@ -60,7 +59,8 @@ def get_repository_info() -> Any:
         post_success_template="repositories/repo_stats.html",
     )
 
-    result_log = repository_manager.get_repository_info(path=request.form["path"])
+    form_data = request.form
+    result_log = repository_manager.get_repository_info(path=form_data["path"], passphrase=form_data["passphrase"])
     rh.borgdrone_return = result_log.borgdrone_return()
 
     if result_log.status == "FAILURE":
@@ -81,7 +81,9 @@ def import_repo() -> Any:
     )
 
     if request.method == "POST":
-        result_log = repository_manager.import_repo(path=request.form["path"])
+        form_data = request.form
+
+        result_log = repository_manager.import_repo(path=form_data["path"], passphrase=form_data["passphrase"])
         rh.borgdrone_return = result_log.borgdrone_return()
 
         if result_log.status == "FAILURE":
