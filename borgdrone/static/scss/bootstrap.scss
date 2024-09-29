@@ -1,0 +1,201 @@
+// Custom.scss
+// Option A: Include all of Bootstrap
+
+// variable overrides here
+$primary: #04db04;
+
+$base-color: #929292;
+$body-bg: #4c4c4c;
+
+@import "../node_modules/bootstrap/scss/bootstrap";
+
+// Then add additional custom code here
+
+
+$level-1-bg: darken($base-color, 40%);
+$level-2-bg: darken($base-color, 35%);
+$level-3-bg: darken($base-color, 30%);
+$level-4-bg: darken($base-color, 25%);
+$level-5-bg: darken($base-color, 20%);
+
+$level-1-text: color-contrast($level-1-bg);
+$level-2-text: darken($level-1-text, 5%);
+$level-3-text: darken($level-2-text, 5%);
+$level-4-text: darken($level-3-text, 5%);
+$level-5-text: darken($level-4-text, 5%);
+
+@font-face {
+    font-family: "BlackOpsOne";
+    src: url("fonts/BlackOpsOne-Regular.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+}
+
+.level-1 {
+    background-color: $level-1-bg;
+    color: $level-1-text;
+}
+
+.level-2 {
+    background-color: $level-2-bg;
+    color: $level-2-text;
+}
+
+.level-3 {
+    background-color: $level-3-bg;
+    color: $level-3-text;
+}
+
+.level-4 {
+    background-color: $level-4-bg;
+    color: $level-4-text;
+}
+
+.navbar-brand {
+    font-family: "BlackOpsOne";
+    color: $primary;
+    @extend .fs-4;
+    @extend .mb-0;
+
+    &:hover {
+        color: $primary;
+    }
+}
+
+.sidebar {
+    background-color: $level-1-bg;
+    color: $level-1-text;
+
+    .nav-link {
+        color: inherit;
+        @extend .fs-6;
+        @extend .ps-0;
+
+        &:hover {
+            color: $primary;
+        }
+
+        &.active {
+            background-color: inherit;
+            color: $primary;
+        }
+    }
+
+    i {
+        @extend .pe-2;
+    }
+
+    hr {
+        @extend .my-1;
+    }
+}
+
+.fade-me-in {
+    opacity: 1;
+    transition: opacity 500ms ease-out;
+
+    .htmx-added {
+        opacity: 0;
+    }
+}
+
+.fade-me-out {
+    .htmx-swapping {
+        opacity: 0;
+        transition: opacity 500ms ease-out;
+    }
+}
+
+#content {
+    @extend .fade-me-in;
+    @extend .fade-me-out;
+
+    div {
+        @extend .fade-me-in;
+        @extend .fade-me-out;
+    }
+
+    form {
+        @extend .fade-me-in;
+        @extend .fade-me-out;
+    }
+}
+
+#content-header {
+    @extend .p-4;
+    background-color: $level-2-bg;
+    color: $level-2-text;
+
+    .title {
+        @extend .fw-bold;
+        @extend .text-decoration-underline;
+    }
+}
+
+.nav-btn {
+    @extend .btn;
+    @extend .btn-outline-primary;
+    @extend .px-3;
+    @extend .rounded-0;
+    @extend .border-0;
+    background-color: $level-3-bg;
+    color: $level-3-text;
+
+    &:hover {
+        background-color: $level-4-bg;
+        color: $primary;
+    }
+
+    .active {
+        background-color: $level-4-bg;
+        color: $primary;
+    }
+}
+
+#sub-header {
+    @extend .d-flex;
+    @extend .mb-2;
+}
+
+#sub-content {
+    @extend .px-2;
+    @extend .vstack;
+    @extend .align-items-start;
+}
+
+#vstack-form {
+    @extend .vstack;
+    @extend .p-4;
+    @extend .me-auto;
+    @extend .rounded-1;
+    color: $level-3-text;
+    background-color: $level-3-bg;
+
+    .input-legend {
+        @extend .h4;
+        @extend .form-control-plaintext;
+        @extend .p-0;
+        color: inherit;
+        background-color: inherit;
+    }
+
+    .form-control {
+        color: $level-4-text;
+        background-color: $level-4-bg;
+        border-color: $level-4-bg;
+    }
+
+    .form-select {
+        color: $level-4-text;
+        background-color: $level-4-bg;
+        border-color: $level-4-bg;
+    }
+
+    .form-label {
+        @extend .fw-bold;
+    }
+
+    .form-text {
+        color: darken($level-4-text, 15%);
+    }
+}
