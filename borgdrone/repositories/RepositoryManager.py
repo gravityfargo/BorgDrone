@@ -6,8 +6,7 @@ from sqlalchemy import select
 from borgdrone.borg import BorgRunner as borg_runner
 from borgdrone.extensions import db
 from borgdrone.helpers.datahelpers import ISO8601_to_human
-from borgdrone.logging import BorgdroneEvent
-from borgdrone.logging import logger as log
+from borgdrone.logging import BorgdroneEvent, logger
 from borgdrone.types import OptInt, OptStr
 
 from .models import ListRepository, OptRepository, Repository
@@ -63,7 +62,7 @@ def create_repo(path: str, encryption: str) -> BorgdroneEvent[Repository]:
     return _log.return_success("Repository created.")
 
 
-def get_repository_info(path: str) -> BorgdroneEvent[Optional[Repository]]:
+def get_repository_info(path: str, passphrase: Optional[str] = None) -> BorgdroneEvent[Optional[Repository]]:
     """Get information about a repository.
 
     Arguments:
@@ -75,21 +74,25 @@ def get_repository_info(path: str) -> BorgdroneEvent[Optional[Repository]]:
     _log = BorgdroneEvent[Optional[Repository]]()
     _log.event = "RepositoryManager.get_repository_info"
 
-    info_result_log = borg_runner.borg_info(path)
-    if info_result_log.status == "FAILURE":
-        # we want to pass the error code and message
-        # to the user and for BORG_RETURN
-        _log.error_code = info_result_log.error_code
-        _log.error_message = info_result_log.error_message
-        return _log.return_failure(info_result_log.error_message)
+    instance = get_one(path=path)
+    if not instance:
+        instance = Repository()
+        instance.path = path
+        instance.passphrase = passphrase
+        logger.debug(f"Getting info for unmanaged repository: {path}", "yellow")
+    else:
+        logger.debug(f"Getting info for managed repository: {path}", "yellow")
 
-    if not (stats := info_result_log.get_data()):
-        message = "Failed to get repository info."
-        return _log.return_failure(message)
+    result_log = borg_runner.repository_info(instance.path, instance.passphrase)
+    if not (stats := result_log.get_data()):
+        if result_log.error_code == "Borg.PassphraseWrong":
+            error_message = "Passphrase is wrong or was not provided."
+        else:
+            error_message = result_log.error_message
 
-    instance = Repository()
+        return _log.return_failure(error_message)
+
     instance.repo_id = stats["repository"]["id"]
-    instance.path = stats["repository"]["location"]
 
     date_str = stats["repository"]["last_modified"]
     instance.last_modified = ISO8601_to_human(date_str)
@@ -126,17 +129,19 @@ def delete_repo(db_id: int) -> BorgdroneEvent[None]:
         return _log.not_found_message("Repository")
 
     instance.delete()
-    log.success("Repository deleted from borgdrone database.")
+    logger.success("Repository deleted from borgdrone database.")
 
     # borg delete --force
-    result_log = borg_runner.delete_repository(instance.path)
-    if result_log.status == "FAILURE":
-        return _log.return_failure(result_log.error_message)
+    # result_log = borg_runner.delete_repository(instance.path)
+    # if result_log.status == "FAILURE":
+    #     return _log.return_failure(result_log.error_message)
 
     return _log.return_success("Repository deleted from filesystem.")
 
 
-def update_repository_info(db_id: OptInt = None, path: OptStr = None) -> BorgdroneEvent[None]:
+def update_repository_info(
+    db_id: OptInt = None, path: OptStr = None, passphrase: Optional[str] = None
+) -> BorgdroneEvent[None]:
     _log = BorgdroneEvent[None]()
     _log.event = "RepositoryManager.update_repository_info"
 
@@ -144,15 +149,20 @@ def update_repository_info(db_id: OptInt = None, path: OptStr = None) -> Borgdro
     if not instance:
         return _log.not_found_message("Repository")
 
-    result_log = get_repository_info(instance.path)
+    result_log = get_repository_info(instance.path, instance.passphrase)
     if not (data := result_log.get_data()):
-        error_message = "Failed to get repository info. This should not be possible!"
+        if result_log.error_code == "Borg.PassphraseWrong":
+            error_message = "Passphrase is wrong or was not provided."
+        else:
+            error_message = result_log.error_message
+
         return _log.return_failure(error_message)
 
     instance.path = data.path
     instance.last_modified = data.last_modified
     instance.encryption_mode = data.encryption_mode
     instance.encryption_keyfile = data.encryption_keyfile
+    instance.passphrase = passphrase
     instance.cache_path = data.cache_path
     instance.total_chunks = data.total_chunks
     instance.total_unique_chunks = data.total_unique_chunks
@@ -167,7 +177,7 @@ def update_repository_info(db_id: OptInt = None, path: OptStr = None) -> Borgdro
     return _log.return_success("Repository info updated.")
 
 
-def import_repo(path: str) -> BorgdroneEvent[Repository]:
+def import_repo(path: str, passphrase: Optional[str] = None) -> BorgdroneEvent[Repository]:
     _log = BorgdroneEvent[Repository]()
     _log.event = "RepositoryManager.import_repo"
 
@@ -176,7 +186,7 @@ def import_repo(path: str) -> BorgdroneEvent[Repository]:
         error_message = "Repo exists in the database already. Cannot import."
         return _log.return_failure(error_message)
 
-    result_log = get_repository_info(path=path)
+    result_log = get_repository_info(path=path, passphrase=passphrase)
     if result_log.status == "FAILURE":
         _log.error_code = result_log.error_code
         _log.error_message = result_log.error_message
