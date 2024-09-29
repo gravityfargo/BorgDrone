@@ -1,9 +1,3 @@
-import os
-import secrets
-from pathlib import Path
-from typing import Any
-
-from dotenv import dotenv_values
 from flask import Flask, Response, render_template, request
 
 from ._version import __version__
@@ -13,9 +7,9 @@ from .auth import Users, auth_blueprint
 from .bundles import bundles_blueprint
 from .dashboard import dashboard_blueprint
 from .extensions import db, login_manager, migrate, socketio
-from .helpers import ResponseHelper, filemanager
+from .helpers import ResponseHelper, bash
 from .repositories import repositories_blueprint
-from .settings import settings_blueprint
+from .settings import environ, settings_blueprint
 
 
 @login_manager.user_loader
@@ -24,14 +18,28 @@ def load_user(user_id):
 
 
 def create_app() -> Flask:
-    config = get_secret_config()
+    """
+    Flow:
+    - User makes a request with browser refresh, or htmx/form POST/DELETE etc
+    - @app.before_request
+        - sets ResponseHelper class variables
+    - ResponseHelper processes the request, and forms the requested response
+    - @app.context_processor
+        - adds gloabl variables to the template context
+    - response is returned to the user
+    - @app.after_request
+        - renders toast messages if hx-request is present to avoid a page reload
+    """
     app = Flask(__name__)
-    app.config.from_mapping(config)
+    config_data = environ.load_config()
+    app.config.from_mapping(config_data)
+
     app.config.update(
         SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
     )
+
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
@@ -47,6 +55,13 @@ def create_app() -> Flask:
     @app.before_request
     def before_request():
         if request.endpoint != "static":
+            """
+            this sets class variables for the ResponseHelper
+            using this information, the ResponseHelper can determine
+            which template to load (get, post_success, post_failure)
+            and if it should load the template fragment, or the full page
+            with Flask.render_template_string
+            """
             hx_request = request.headers.get("HX-Request", False)
             ResponseHelper.request_method = request.method
             ResponseHelper.endpoint = request.endpoint
@@ -59,7 +74,10 @@ def create_app() -> Flask:
             response.data = response.data + messages.encode("utf-8")
         return response
 
+    bash.run("echo 'Borgdrone is running!'")
+
     with app.app_context():
+
         db.create_all()
         init_db_data(app)
         app.register_blueprint(auth_blueprint, url_prefix="/auth")
@@ -82,72 +100,3 @@ def init_db_data(app: Flask):
     if not result_log.get_data():
         user_manager.create(app.config["DEFAULT_USER"], app.config["DEFAULT_PASSWORD"])
         # SettingsManager().create(user_id=user.id)
-
-
-def get_secret_config() -> dict[str, Any]:
-    """
-    A .env is only created in development mode.
-    Otherwise, the environment variables are used.
-
-    `BORGWEB_ENV` can be set to `pytest` to create a temporary instance directory
-    and use a temporary database. Eventually this will be replaced with a
-    better solution.
-
-    # TODO:
-    - load env vars
-    - check for .env
-    - create a default user if not exists with all settings
-    """
-
-    current_dir = Path(__file__).parents[1]
-    instance_path = os.environ.get("INSTANCE_PATH", f"{current_dir}/instance")
-    logs_dir = os.environ.get("LOGS_DIR", f"{instance_path}/logs")
-    archives_log_dir = os.environ.get("ARCHIVES_LOG_DIR", f"{logs_dir}/archive_logs")
-    bash_dir = os.environ.get("BASH_SCRIPTS_DIR", f"{instance_path}/bash_scripts")
-
-    flask_env = os.environ.get("FLASK_ENV", "development")
-    config_file = f"{instance_path}/borgdrone.env"
-
-    # default config values
-    config_data = {
-        "SECRET_KEY": os.environ.get("SECRET_KEY", secrets.token_hex()),
-        "SQLALCHEMY_TRACK_MODIFICATIONS": os.environ.get("SQLALCHEMY_TRACK_MODIFICATIONS", "False"),
-        "DEFAULT_PASSWORD": os.getenv("DEFAULT_PASSWORD", "admin"),
-        "DEFAULT_USER": os.getenv("DEFAULT_USER", "admin"),
-        "INSTANCE_PATH": instance_path,
-        "LOGS_DIR": logs_dir,
-        "ARCHIVES_LOG_DIR": archives_log_dir,
-        "BASH_SCRIPTS_DIR": bash_dir,
-        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{instance_path}/borgdrone.sqlite3",
-        "FLASK_RUN_PORT": os.environ.get("FLASK_RUN_PORT", "5000"),
-        "FLASK_DEBUG": os.environ.get("FLASK_DEBUG", "True"),
-        "FLASK_APP": "borgdrone",
-        "SESSION_COOKIE_SAMESITE=": "Lax",
-    }
-
-    # check instance directories
-
-    filemanager.check_dir(instance_path, create=True)
-    filemanager.check_dir(logs_dir, create=True)
-    filemanager.check_dir(archives_log_dir, create=True)
-    filemanager.check_dir(bash_dir, create=True)
-
-    # create the .env file if in development mode
-    if flask_env == "development":
-        result = filemanager.check_file(config_file)
-        if not result:
-            try:
-                with open(config_file, "w", encoding="utf-8") as f:
-                    for key, value in config_data.items():
-                        f.write(f"{key}={value}\n")
-            except Exception as e:
-                raise e
-        config_data = dotenv_values(config_file)
-
-    for key, value in config_data.items():
-        if key.startswith("FLASK_"):
-            if value:
-                os.environ[key] = value
-
-    config_data["PYTESTING"] = os.environ.get("PYTESTING", "False")
-    return config_data
