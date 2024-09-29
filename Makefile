@@ -2,6 +2,13 @@ install:
 	poetry install
 	pnpm install
 	poetry run flask --app borgdrone db init
+	sass --update ./borgdrone/static/scss/main.scss ./borgdrone/static/css/main.css
+
+sass:
+	sass --update ./borgdrone/static/scss/bootstrap.scss ./borgdrone/static/css/bootstrap.css
+
+sass-watch:
+	sass --watch ./borgdrone/static/scss/bootstrap.scss ./borgdrone/static/css/bootstrap.css
 
 migrate:
 	poetry run flask --app borgdrone db migrate -m "Upgrade database."
@@ -16,7 +23,6 @@ clean:
 	rm -rf .venv
 
 run:
-	export PYTESTING=False
 	poetry run flask --app borgdrone run
 
 cleanrun:
