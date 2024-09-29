@@ -1,18 +1,18 @@
 {
-  "name": "borgdrone",
+  "name": "BorgDrone",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "sass": "sass ./borgdrone/static/scss/main.scss ./borgdrone/static/css/main.css"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "bootstrap": "5.3.3",
+    "bootstrap": "^5.3.3",
     "bootstrap-icons": "^1.11.3",
-    "htmx.org": "2.0.2",
-    "socket.io": "^4.7.5"
+    "htmx.org": "^1.9.12",
+    "socket.io": "^4.8.0"
   }
 }
