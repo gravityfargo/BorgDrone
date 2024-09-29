@@ -1,4 +1,6 @@
 import json
+import os
+import uuid
 from typing import Any, Dict, List, Optional
 
 from borgdrone.helpers import bash
@@ -261,9 +263,9 @@ def get_last_archive(repo_path: str) -> BorgdroneEvent[Optional[dict]]:
 
 
 def borg_check(repo_path: str, repository_only: bool = True) -> BorgdroneEvent[None]:
+
     _log = BorgdroneEvent[None]()
     _log.event = "BorgRunner.borg_check"
-    _log.status = "SUCCESS"
 
     command = BORG_CHECK_COMMAND.copy()
     if repository_only:
@@ -273,5 +275,26 @@ def borg_check(repo_path: str, repository_only: bool = True) -> BorgdroneEvent[N
     result = bash.run(command)
     if "stderr" in result:
         __process_error(_log, result["stderr"])
+        return _log.return_debug_failure()
 
-    return _log
+    return _log.return_debug_success()
+
+
+def repository_info(repo_path: str, passphrase: Optional[str] = None) -> BorgdroneEvent[Optional[Dict[str, Any]]]:
+    _log = BorgdroneEvent[Optional[Dict[str, Any]]]()
+    _log.event = "BorgRunner.repository_info"
+
+    if not passphrase:
+        logger.debug("No repository passphrase provided. Generating one.", "yellow")
+        passphrase = str(uuid.uuid4())
+
+    os.environ["BORG_PASSPHRASE"] = passphrase
+    result_log = borg_info(repo_path)
+    os.environ["BORG_PASSPHRASE"] = ""
+
+    if not (repository_data := result_log.get_data()):
+        result_log.event = _log.event
+        return result_log.return_debug_failure()
+
+    _log.set_data(repository_data)
+    return _log.return_debug_success("Repository data parsed.")
