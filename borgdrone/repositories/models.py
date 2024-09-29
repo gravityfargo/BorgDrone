@@ -30,6 +30,7 @@ class Repository(db.Model):
     # EncryptionKey
     encryption_mode: Mapped[str]
     encryption_keyfile: Mapped[Optional[str]]
+    passphrase: Mapped[Optional[str]]
 
     # CacheKey
     cache_path: Mapped[Optional[str]]
