@@ -12,17 +12,13 @@ from flask import (
 )
 
 # from borgdrone.logging import BorgdroneEvent
-from borgdrone.logging import logger as log
+from borgdrone.logging import logger
 
 JINJA_TEMPLATE = """
 {% extends 'base.html' %}
+
 {% block content %}
-<script>
-    select_tab("{{ selected_tab }}");
-</script>
-
-{% include 'TEMPLATE_FRAGMENT' %}
-
+    {% include 'TEMPLATE_FRAGMENT' %}
 {% endblock content %}
 """
 
@@ -52,7 +48,7 @@ class ResponseHelper:
         self.headers: dict = kwargs.get("headers", {})
         self.context_data: dict = kwargs.get("context_data", {})
 
-        # self.borgdrone_event: Optional[BorgdroneEvent] = None
+        self.__log()
 
     def respond(self, redirect_url: str = "", error: bool = False, empty: bool = False, data: str = "") -> Response:
         base_name = self.endpoint.split(".")[0]
@@ -100,7 +96,6 @@ class ResponseHelper:
                 case "DELETE":
                     response = self._respond_empty()
 
-        self.__log()
         self.__toast()
         self.__headers(response)
         return response
@@ -115,7 +110,7 @@ class ResponseHelper:
         message = f"[ {self.request_method} :: {endpoint:<20} ]"
 
         if app.config["PYTESTING"] == "False":
-            log.debug(message)
+            logger.debug(message)
 
     def __toast(self) -> None:
         if self.toast_success:
