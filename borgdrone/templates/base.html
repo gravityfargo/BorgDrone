@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,37 +9,32 @@
     <meta name="author" content="https://github.com/borgbackup/borgdrone/blob/master/AUTHORS">
     <meta name="keywords" content="borgdrone, web frontend, borgbackup">
 
-    <title>borgdrone</title>
+    <title>[borgdrone]</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon" />
     <link rel="stylesheet"
         href="{{ url_for('static', filename='node_modules/bootstrap-icons/font/bootstrap-icons.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/bootstrap/dist/css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.css') }}">
     <script src="{{ url_for('static', filename='js/pre.js') }}"></script>
     <script src="{{ url_for('static', filename='node_modules/socket.io/client-dist/socket.io.js') }}"></script>
-
 
 </head>
 
 <body>
-    <div class="container-fluid m-0 p-0">
-        <div class="d-flex">
+    <div class="d-flex vh-100">
+        <div id="sidebar"
+            class="d-flex flex-column p-3 sidebar">
             {% include 'sidebar.html' %}
-            <div class="d-flex flex-fill flex-column">
-                <div id="content" class="d-flex flex-column flex-grow-1 p-0 m-0">
-                    {% block content %}
-                    {% endblock content %}
-                </div>
-
-                {% include 'messages.html' %}
-                <div class="p-2">
-                    <p>borgdrone {{ version }}</p>
-                </div>
-            </div>
+        </div>
+        {% include 'messages.html' %}
+        <div id="content" class="flex-grow-1">
+            {% block content %}
+            {% endblock content %}
         </div>
     </div>
-    <script src="{{ url_for('static', filename='node_modules/bootstrap/dist/js/bootstrap.bundle.min.js') }}"></script>
+    </div>
     <script src="{{ url_for('static', filename='node_modules/htmx.org/dist/htmx.min.js') }}"></script>
+
+    <script src="{{ url_for('static', filename='node_modules/bootstrap/dist/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/post.js') }}"></script>
 </body>
 

@@ -8,10 +8,12 @@
 
 {% endmacro %}
 
-{% macro text_input(label, name, placeholder='', value='', read_only=false) %}
-<div class="col p-0 m-0">
-    <label for="{{ name }}" class="form-label">{{ label }}</label>
-    <input name="{{ name }}" type="text" class="form-control" placeholder="{{ placeholder }}" value="{{ value }}"
-        {% if read_only %} readonly {% endif %}>
-</div>
+{% macro text_input(label, name, placeholder='', value='', read_only=false, password=false) %}
+<label for="{{ name }}" class="form-label">{{ label }}</label>
+<input name="{{ name }}"
+    type="{% if password %}password{% else %}text{% endif %}"
+    class="form-control"
+    placeholder="{{ placeholder }}"
+    value="{{ value }}"
+    {% if read_only %} readonly {% endif %}>
 {% endmacro %}

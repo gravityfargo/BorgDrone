@@ -1,23 +1,94 @@
 {% from 'macros.html' import text_input %}
+<hr>
+<div class="vstack">
+    <div class="row">
+        <div class="col">
+            <label for="unique_size" class="form-label">Unique Size</label>
+            <input id="unique_size"
+                name="unique_size" type="text"
+                class="form-control"
+                value="{{ convert_bytes(repository.unique_size) }}"
+                aria-describedby="unique_size_desc" read_only>
 
-<div class="p-2 vstack gap-2">
-    {{ text_input("ID", "repo_id", value=repository.id, read_only=true) }}
-    {{ text_input("Cache Path", "cache_path", value=repository.cache_path, read_only=true) }}
-    <div class="hstack gap-2">
-        {{ text_input("Total Chunks", "total_chunks", value=repository.total_chunks, read_only=true) }}
-        {{ text_input("Compressed Size", "total_csize", value=convert_bytes(repository.total_csize), read_only=true) }}
-        {{ text_input("Original Size", "total_size", value=convert_bytes(repository.total_size), read_only=true) }}
+            <div id="unique_size_desc" class="form-text">
+                This is the actual disk usage of the repository after compression and deduplication.
+            </div>
+        </div>
+
+        <div class="col">
+            {{ text_input("Encryption Type", "encryption", value=repository.encryption_mode, read_only=true) }}
+        </div>
+
+        <div class="col">
+            {{ text_input("Last Modified", "last_modified", value=repository.last_modified, read_only=true) }}
+        </div>
     </div>
-    <div class="hstack gap-2">
-        {{ text_input("Unique Chunks", "total_unique_chunks", value=repository.total_unique_chunks, read_only=true) }}
-        {{ text_input("Deduplicated Size", "unique_csize", value=convert_bytes(repository.unique_csize), read_only=true) }}
-        {{ text_input("Unique Size", "unique_size", value=convert_bytes(repository.unique_size), read_only=true) }}
+    <hr>
+    <div class="row">
+        <!--  -->
+        <div class="col">
+            <label for="total_size" class="form-label fw-bold">Original Size</label>
+            <input id="total_size" name="total_size" type="text" class="form-control"
+                value="{{ convert_bytes(repository.total_size) }}"
+                aria-describedby="total_size_desc" read_only>
+            <div id="total_size_desc" class="form-text">
+                Size of all the source data that was backup by borg across all archives.
+            </div>
+        </div>
+        <!--  -->
+        <div class="col">
+            <label for="total_csize" class="form-label fw-bold">Compressed Size</label>
+            <input id="total_csize" name="total_csize" type="text" class="form-control"
+                value="{{ convert_bytes(repository.total_csize) }}"
+                aria-describedby="total_csize_desc" read_only>
+            <div id="total_csize_desc" class="form-text">
+                Size of the repository after compression.
+            </div>
+        </div>
+        <!--  -->
+        <div class="col">
+            <label for="unique_csize" class="form-label fw-bold">Deduplicated Size</label>
+            <input id="unique_csize" name="unique_csize" type="text" class="form-control"
+                value="{{ convert_bytes(repository.unique_csize) }}"
+                aria-describedby="unique_csize_desc" read_only>
+            <div id="unique_csize_desc" class="form-text">
+                Actual size on the disk after deduplication.
+            </div>
+        </div>
+        <!--  -->
     </div>
-    {{ text_input("Encryption", "encryption", value=repository.encryption_mode, read_only=true) }}
-    {{ text_input("Last Modified", "last_modified", value=repository.last_modified, read_only=true) }}
-    {{ text_input("Security Dir", "security_dir", value=repository.security_dir, read_only=true) }}
-</div>
-<div class="p-2 text-end">
+    <div class="row">
+        <!--  -->
+        <div class="col">
+            <label for="total_chunks" class="form-label fw-bold">Total Chunks</label>
+            <input id="total_chunks" name="total_chunks" type="text" class="form-control"
+                value="{{ repository.total_chunks }}"
+                aria-describedby="total_chunks_desc" read_only>
+            <div id="total_chunks_desc" class="form-text">
+                All data "chunks" that are stored in the repository.
+            </div>
+        </div>
+        <!--  -->
+        <div class="col">
+            <label for="total_unique_chunks" class="form-label fw-bold">Unique Chunks</label>
+            <input id="total_unique_chunks" name="total_unique_chunks" type="text" class="form-control"
+                value="{{ repository.total_unique_chunks }}"
+                aria-describedby="total_unique_chunks_desc" read_only>
+            <div id="total_unique_chunks_desc" class="form-text">
+                Unique pieces of data that have only been stored once.
+            </div>
+        </div>
+        <div class="col"></div>
+    </div>
+    <hr>
+
+    <div class="row mb-4">
+        <div class="col">
+            {{ text_input("ID", "repo_id", value=repository.id, read_only=true) }}
+            {{ text_input("Cache Path", "cache_path", value=repository.cache_path, read_only=true) }}
+            {{ text_input("Security Dir", "security_dir", value=repository.security_dir, read_only=true) }}
+        </div>
+    </div>
+
     <input type="text" name="repo_path" value="{{ repository.path }}" hidden>
-    <button type="submit" class="btn btn-primary">Import</button>
 </div>

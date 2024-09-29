@@ -1,24 +1,25 @@
 {% from 'macros.html' import text_input %}
-<div class="p-2 border-bottom bg-body-tertiary mb-2">
-    <div class="hstack gap-3">
-        <div class="vstack">
-            <h5>Repositories</h5>
-            <h6>Create a Repository</h6>
+<script>
+    select_sub_tab("create");
+</script>
+
+<form id="vstack-form" hx-target="#sub-content" hx-post="{{ url_for('repositories.create_repo') }}">
+
+    <div class="row mb-3">
+        <div class="col">
+            {{ text_input("Path", "path", value="/tmp/borgdrone") }}
+        </div>
+        <div class="col">
+            <label for="encryption" class="form-label">Encryption</label>
+            <select id="encryption" class="form-select" name="encryption">
+                <option value="none" selected>none</option>
+            </select>
         </div>
     </div>
-</div>
-<form hx-target="#content" hx-post="{{ url_for('repositories.create_repo') }}">
-    <div class="p-2 border rounded bg-body-tertiary">
-        {{ text_input("Path", "path", value="/tmp/borgdrone") }}
+
+    <div class="hstack">
+        <button type="submit" class="btn btn-secondary ms-auto mt-3">Create</button>
     </div>
 
-    <div class="p-2 border rounded bg-body-tertiary">
-        <label for="encryption">Encryption</label>
-        <select id="encryption" class="form-select" name="encryption">
-            <option selected>none</option>
-        </select>
-    </div>
-    <div class="p-2 border rounded bg-body-tertiary">
-        <button type="submit" class="btn btn-primary">Create</button>
-    </div>
+
 </form>

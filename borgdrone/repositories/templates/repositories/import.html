@@ -1,22 +1,40 @@
 {% from 'macros.html' import text_input %}
-<div class="p-2 border-bottom bg-body-tertiary mb-2">
-    <div class="hstack gap-3">
-        <div class="vstack">
-            <h5>Repositories</h5>
-            <h6>Import a Repository</h6>
+<script>
+    select_sub_tab("import");
+</script>
+
+<form id="vstack-form" hx-target="#sub-content" hx-post="{{ url_for('repositories.import_repo') }}">
+
+    <div class="row mb-3">
+        <div class="col">
+            {{ text_input(label="Path", name="path") }}
+        </div>
+        <div class="col">
+            {{ text_input(label="Passphrase", name="passphrase", password=false) }}
         </div>
     </div>
-</div>
-<div class="p-2 border rounded bg-body-tertiary">
-    <form hx-target="#content" hx-post="{{ url_for('repositories.import_repo') }}">
-        <div class="p-2 vstack gap-2">
-            {{ text_input("Path", "path", value="/tmp/borgdrone") }}
-            <button class="btn btn-primary" hx-target="#stats" hx-swap="innerHTML" hx-include="[name='path']"
+    <div id="stats">
+    </div>
+    <div class="hstack">
+        <div class="btn-group ms-auto mt-3">
+            <button class="btn btn-secondary "
+                type="button"
+                hx-target="#stats"
+                hx-swap="innerHTML"
+                hx-include="[name='path']"
                 hx-post="{{ url_for('repositories.get_repository_info') }}">
                 Check Path
             </button>
+            <button type="submit" class="btn btn-secondary">
+                Import
+            </button>
+            <button class="btn btn-danger"
+                type="button"
+                hx-target="#sub-content"
+                hx-get="{{ url_for('repositories.import_repo') }}">
+                Reset Form
+            </button>
         </div>
-        <div id="stats">
-        </div>
-    </form>
-</div>
+    </div>
+
+</form>

@@ -1,27 +1,79 @@
+{% from 'macros.html' import text_input %}
 <script>
     select_tab("{{ selected_tab }}");
 </script>
-<div class="p-2 border-bottom bg-body-tertiary mb-2 shadow">
-    <div class="hstack gap-3">
-        <div class="vstack">
-            <h5>Repositories</h5>
-            <span>
-                "A repository is a filesystem directory containing the deduplicated data from zero or more
-                archives."
-            </span>
-        </div>
-        <div class="btn-group" role="group">
-            <button type="button"
-                class="btn btn-primary"
-                hx-target="#content"
-                hx-get="{{ url_for('repositories.create_repo') }}">Create</button>
 
-            <button type="button"
-                class="btn btn-primary"
-                hx-target="#content"
-                hx-get="{{ url_for('repositories.import_repo') }}">Import</button>
-        </div>
-    </div>
+{% include 'repositories/header.html' %}
+
+<div id="sub-header" hx-target="#sub-content">
+    <button id="create" class="nav-btn" hx-get="{{ url_for('repositories.create_repo') }}">
+        Create a new Repository
+    </button>
+    <button id="import" class="nav-btn" hx-get="{{ url_for('repositories.import_repo') }}">
+        Import and existing Repository
+    </button>
 </div>
 
-{% include "repositories/repos.html" %}
+<div id="sub-content">
+
+    <div class="mt-2 mb-auto">
+        {% for repository in repositories %}
+        <form id="vstack-form" hx-target="this">
+            <div class="d-flex mb-3">
+
+                <input type="text" name="path" class="input-legend flex-fill" value="{{ repository.path }}">
+                <input type="text" name="passphrase" value="{{ repository.passphrase }}" hidden>
+
+                <div class="btn-group flex-fill">
+                    <button class="btn btn-secondary "
+                        type="button"
+                        hx-target="#stats"
+                        hx-include="[name='path']"
+                        hx-post="{{ url_for('repositories.get_repository_info') }}">
+
+                        <i class="bi bi-info-circle"></i> Info
+                    </button>
+
+                    <button class="btn btn-secondary"
+                        hx-swap="none"
+                        hx-post="{{ url_for('repositories.update_stats', db_id=repository.id) }}">
+
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+
+                    <button class="btn btn-danger"
+                        hx-delete="{{ url_for('repositories.delete_repo', db_id=repository.id) }}">
+
+                        <i class="bi bi-trash3-fill"></i> Delete
+                    </button>
+                </div>
+            </div>
+
+            <div id="stats" class="row">
+                <div class="col">
+                    <label for="unique_size" class="form-label">Unique Size</label>
+                    <input id="unique_size"
+                        name="unique_size" type="text"
+                        class="form-control"
+                        value="{{ convert_bytes(repository.unique_size) }}"
+                        aria-describedby="unique_size_desc" read_only>
+
+                    <div id="unique_size_desc" class="form-text">
+                        This is the actual disk usage of the repository after compression and deduplication.
+                    </div>
+                </div>
+
+                <div class="col">
+                    {{ text_input("Encryption Type", "encryption", value=repository.encryption_mode, read_only=true) }}
+                </div>
+
+                <div class="col">
+                    {{ text_input("Last Modified", "last_modified", value=repository.last_modified, read_only=true) }}
+                </div>
+            </div>
+
+        </form>
+        {% endfor %}
+    </div>
+
+</div>

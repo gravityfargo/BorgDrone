@@ -1,74 +1,96 @@
-<div id="sidebar" class="d-flex flex-column min-vh-100 border-end border-black text-nowrap">
-    <div class="d-flex flex-column px-3 py-1">
-        <div id="logo" class="m-0">borgdrone</div>
-        <p class="text-white">Web UI for BorgBackup </p>
-    </div>
-    <hr class="mt-1">
-    <ul id="sidebar_links" class="list-group list-group-flush" hx-target="#content">
-
-        <div id="dashboard_tab"
-            class="list-group-item"
-            hx-get="{{ url_for('dashboard.index') }}"
-            hx-push-url="true"
-            hx-swap="innerHTML swap:0.1s">
-            <i class="bi bi-house-door-fill"></i> Dashboard
-        </div>
-
-        {% if current_user.is_authenticated %}
-
-        <div id="repositories_tab"
-            class="list-group-item"
-            hx-get="{{ url_for('repositories.index') }}"
-            hx-push-url="true"
-            hx-swap="innerHTML swap:0.1s">
-            <span><i class="bi bi-house-door-fill"></i> Repositories</span>
-        </div>
-
-        <div id="bundles_tab"
-            class="list-group-item"
-            hx-get="{{ url_for('bundles.index') }}"
-            hx-push-url="true"
-            hx-swap="innerHTML swap:0.1s">
-            <i class="bi bi-collection-fill"></i> Bundles
-        </div>
-
-        <div id="archives_tab"
-            class="list-group-item"
-            hx-get="{{ url_for('archives.index') }}"
-            hx-push-url="true"
-            hx-swap="innerHTML swap:0.1s">
-            <span><i class="bi bi-archive-fill"></i> Archives</span>
-        </div>
-
-        <div id="logs_tab"
-            class="list-group-item"
-            hx-get=""
-            hx-push-url="true"
-            hx-swap="innerHTML swap:0.1s">
-            <i class="bi bi-house-door-fill"></i> Logs
-        </div>
-
-        <div id="settings_tab"
-            class="list-group-item"
-            hx-get="{{ url_for('settings.index') }}"
-            hx-push-url="true"
-            hx-swap="innerHTML swap:0.1s">
-            <i class="bi bi-gear-fill"></i> Settings
-        </div>
-
-        {% endif %}
-    </ul>
-    <ul class="list-group list-group-flush mt-auto">
-        {% if current_user.is_authenticated %}
-        <li class="list-group-item">
-            <a class="nav-link stretched-link" href="{{ url_for('auth.logout') }}">
-                Sign out
-            </a>
-        </li>
-        {% else %}
-        <li class="list-group-item">
-            <a class="nav-link stretched-link" href="{{ url_for('auth.login') }}">Log In</a>
-        </li>
-        {% endif %}
-    </ul>
+<div class="d-flex flex-column align-items-center mb-2">
+    <p class="navbar-brand">borgdrone</p>
+    <small>Web UI for BorgBackup </small>
 </div>
+
+<hr>
+
+<ul class="nav nav-pills flex-column mb-auto"
+    id="sidebar_links"
+    hx-target="#content"
+    hx-push-url="true">
+
+    <li class="nav-item"
+        id="dashboard_tab"
+        hx-get="{{ url_for('dashboard.index') }}">
+        <a href="#" class="nav-link">
+            <i class="bi bi-house-door-fill"></i>
+            Dashboard
+        </a>
+    </li>
+
+    {% if current_user.is_authenticated %}
+
+    <li id="repositories_tab"
+        class="nav-item"
+        hx-get="{{ url_for('repositories.index') }}">
+        <a href="#" class="nav-link">
+            <i class="bi bi-device-hdd"></i>
+            Repositories
+        </a>
+    </li>
+
+    <li id="bundles_tab"
+        class="nav-item"
+        hx-get="{{ url_for('bundles.index') }}">
+        <a href="#" class="nav-link">
+            <i class="bi bi-box-seam"></i>
+            Bundles
+        </a>
+    </li>
+
+    <li id="archives_tab"
+        class="nav-item"
+        hx-get="{{ url_for('archives.index') }}">
+        <a href="#" class="nav-link">
+            <i class="bi bi-archive"></i>
+            Archives
+        </a>
+    </li>
+
+    <li id="logs_tab"
+        class="nav-item"
+        hx-get="">
+        <a href="#" class="nav-link">
+            <i class="bi bi-file-earmark-ruled"></i>
+            Logs
+        </a>
+    </li>
+
+
+    <li id="settings_tab"
+        class="nav-item"
+        hx-get="{{ url_for('settings.index') }}">
+        <a href="#" class="nav-link">
+            <i class="bi bi-gear"></i>
+            Settings
+        </a>
+    </li>
+    {% endif %}
+</ul>
+
+
+
+<ul class="nav nav-pills flex-column">
+    {% if current_user.is_authenticated %}
+
+    <li class="nav-item">
+        <a href="{{ url_for('auth.logout') }}" class="nav-link">
+            Sign out
+        </a>
+    </li>
+
+    {% else %}
+
+    <li class="nav-item">
+        <a href="{{ url_for('auth.login') }}" class="nav-link">
+            Log in
+        </a>
+    </li>
+
+    {% endif %}
+</ul>
+
+<hr>
+
+<small>{{ version }}</small>
